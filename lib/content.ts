@@ -14,7 +14,7 @@ export const nav = [
   { label: "Story", href: "#origin" },
   { label: "Packaging", href: "#unboxing" },
   { label: "Saffron", href: "#saffron" },
-  { label: "Export", href: "#export" },
+  { label: "Export", href: "#world" },
 ];
 
 /** Text beats over the 3D field. `at` / `until` are 0–1 positions in the Origin scroll. */
@@ -89,4 +89,17 @@ export const exportPoints = [
     title: "Worldwide shipping",
     text: "Air freight with tracked, temperature-aware handling. FOB, CIF or DDP terms on request.",
   },
+];
+
+/** Export routes on the globe. Edit to match the markets you actually ship to. */
+export const exportOrigin = { city: "Mashhad", region: "Khorasan, Iran", lat: 36.3, lon: 59.6 };
+export const markets = [
+  { city: "Dubai", country: "United Arab Emirates", lat: 25.2, lon: 55.27 },
+  { city: "Istanbul", country: "Türkiye", lat: 41.01, lon: 28.98 },
+  { city: "Hamburg", country: "Germany", lat: 53.55, lon: 9.99 },
+  { city: "London", country: "United Kingdom", lat: 51.51, lon: -0.13 },
+  { city: "Madrid", country: "Spain", lat: 40.42, lon: -3.7 },
+  { city: "New York", country: "United States", lat: 40.71, lon: -74.0 },
+  { city: "Mumbai", country: "India", lat: 19.08, lon: 72.88 },
+  { city: "Shanghai", country: "China", lat: 31.23, lon: 121.47 },
 ];

@@ -50,7 +50,7 @@ export default function Export() {
       <div className="mx-auto max-w-7xl px-6 py-28 md:px-16 md:py-40">
         <div>
           <div>
-            <p className="kicker mb-6">Chapter V — Export</p>
+            <p className="kicker mb-6">Chapter VI — Partnership</p>
             <h2 className="font-display text-5xl font-light leading-[1.02] md:text-7xl">
               Built for importers
               <br />

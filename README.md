@@ -8,7 +8,8 @@ It follows the saffron from the field to the finished gift.
 | Hero · I The Field · II The Harvest | A real-time 3D saffron field at dawn. The camera flies down to a single crocus, its petals open, and its three red stigmas float out. | Three.js / React Three Fiber, custom shaders (sky, soil, wind) |
 | III The Packaging | The packaging is modelled in 3D from the reference photos and opens layer by layer: the kraft bag, the gift box with its die-cut emblem, the violet case, the story card, the glass crocus stopper, and finally the vessel of saffron. | React Three Fiber, physical glass materials, bloom |
 | IV The Saffron | The title reveals over a crimson glow, followed by the product specification. | GSAP timeline |
-| V Export · Contact | Importer information and a quote-request form (opens the visitor's email app). | — |
+| V Export | A dotted globe turns as saffron threads leave Khorasan as glowing routes to each market. The cities light up as the routes arrive. Edit the markets in `lib/content.ts`. | React Three Fiber, custom shaders, bloom |
+| VI Partnership · Contact | Importer information and a quote-request form (opens the visitor's email app). | — |
 
 Stack: **Next.js 16** (static export), **TypeScript**, **Tailwind CSS v4**, **GSAP + ScrollTrigger**, **Lenis** smooth scroll, **Three.js / React Three Fiber**.
 
@@ -32,6 +33,12 @@ bash scripts/build-textures.sh   # needs ImageMagick and potrace
 This writes:
 - `public/textures/kraft.jpg`: the kraft paper from the gift-box lid, with the lighting flattened.
 - `public/textures/emblem.svg`: the vectorised die-cut emblem and wordmark.
+
+The globe's land dots are precomputed from Natural Earth data (the `world-atlas` package):
+
+```bash
+node scripts/build-world-dots.mjs   # writes public/data/world-dots.json
+```
 
 Model sizes, timings and camera moves are in:
 - `lib/packaging.ts`: geometry, sizes and textures
