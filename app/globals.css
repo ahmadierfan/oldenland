@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0a0908;
+  --color-ink-2: #12100e;
+  --color-ink-3: #1b1815;
+  --color-gold: #c9a45c;
+  --color-gold-soft: #e3cc98;
+  --color-cream: #efe6d6;
+  --color-mute: #9a8f80;
+  --color-violet: #6b3fa0;
+  --color-violet-soft: #9a74d1;
+  --color-saffron: #c2321f;
+  --font-display: var(--font-display), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-sans), "Manrope", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-ink);
+  scrollbar-width: thin;
+  scrollbar-color: #3a3328 transparent;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-cream);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-ink);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.kicker {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.gold-text {
+  background: linear-gradient(100deg, #8a6a32 0%, #e8d29c 35%, #c9a45c 55%, #f4e4b8 70%, #9a7638 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 164, 92, 0.55), transparent);
+}
+
+/* Film grain over the whole page for a cinematic finish (a small tile, moved on the compositor). */
+.grain {
+  pointer-events: none;
+  position: fixed;
+  inset: -160px;
+  z-index: 60;
+  opacity: 0.045;
+  background-image: url("/noise.png");
+  will-change: transform;
+  animation: grain 1s steps(5) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-60px, 40px); }
+  40% { transform: translate(50px, -70px); }
+  60% { transform: translate(-30px, -20px); }
+  80% { transform: translate(70px, 60px); }
+  100% { transform: translate(0, 0); }
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grain {
+    animation: none;
+  }
+}
+
+@keyframes scrollcue {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}
