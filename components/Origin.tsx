@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { brand, originBeats } from "@/lib/content";
+import { FIELD_END, FIELD_VH } from "@/lib/handoff";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -41,7 +42,9 @@ export default function Origin() {
       trigger: el,
       start: "top top",
       end: "bottom bottom",
-      onUpdate: (self) => render(self.progress),
+      // The field's story ends at FIELD_END; after that it holds its last frame while the
+      // unboxing section (pulled up over this one) dissolves in on top.
+      onUpdate: (self) => render(Math.min(1, self.progress / FIELD_END)),
     });
 
     function render(p: number) {
@@ -70,11 +73,11 @@ export default function Origin() {
       });
 
       if (outro.current) {
-        const o = beatOpacity(p, 0.9, 1.2);
+        const o = beatOpacity(p, 0.86, 0.97);
         outro.current.style.opacity = String(o);
-        outro.current.style.transform = `translate3d(0, ${(1 - clamp((p - 0.9) / 0.1)) * 40}px, 0)`;
+        outro.current.style.transform = `translate3d(0, ${(1 - clamp((p - 0.86) / 0.1)) * 40}px, 0)`;
       }
-      if (black.current) black.current.style.opacity = String(clamp((p - 0.86) / 0.06) * 0.62 + clamp((p - 0.96) / 0.04) * 0.38);
+      if (black.current) black.current.style.opacity = String(beatOpacity(p, 0.84, 0.97) * 0.35);
       if (bar.current) bar.current.style.transform = `scaleY(${p})`;
     }
 
@@ -86,7 +89,8 @@ export default function Origin() {
   }, []);
 
   return (
-    <section id="origin" ref={section} className="relative h-[720vh]">
+    <section id="origin" ref={section} className="relative"
+      style={{ height: `${FIELD_VH}vh` }}>
       <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
         <OriginScene progress={progress.current} active={active} />
 

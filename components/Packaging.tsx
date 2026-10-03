@@ -5,12 +5,17 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { packagingBeats } from "@/lib/content";
+import { DISSOLVE_END, DISSOLVE_VH, UNBOX_VH } from "@/lib/handoff";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const PackagingScene = dynamic(() => import("./PackagingScene"), { ssr: false });
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
+const smooth = (p: number, a: number, b: number) => {
+  const t = clamp((p - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
 const FADE = 0.025;
 
 /** Chapter III: the packaging, modelled in 3D and opened layer by layer as you scroll. */
@@ -19,6 +24,10 @@ export default function Packaging() {
   const progress = useRef({ current: 0 });
   const beats = useRef<(HTMLDivElement | null)[]>([]);
   const meter = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  const film = useRef<HTMLDivElement>(null);
+  const vignette = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(false);
   const [current, setCurrent] = useState(0);
 
@@ -43,8 +52,23 @@ export default function Packaging() {
         setCurrent(idx);
       }
       if (meter.current) meter.current.style.transform = `scaleY(${p})`;
+
+      // Field → studio: the 3D stage fades in over the held field frame (its bag sits exactly on
+      // the field's bag), then the black studio rises behind it and the field is gone.
+      const lit = smooth(p, 0, DISSOLVE_END * 0.35);
+      const dark = smooth(p, DISSOLVE_END * 0.3, DISSOLVE_END);
+      if (film.current) film.current.style.opacity = String(lit);
+      if (backdrop.current) backdrop.current.style.opacity = String(dark);
+      if (vignette.current) vignette.current.style.opacity = String(dark);
     };
-    const st = ScrollTrigger.create({ trigger: el, start: "top top", end: "bottom bottom", onUpdate: (s) => render(s.progress) });
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top top",
+      end: "bottom bottom",
+      onUpdate: (s) => render(s.progress),
+      // Hidden until pinned: before that this section is still sliding up over the field.
+      onToggle: (s) => stage.current && (stage.current.style.visibility = s.isActive || s.progress > 0 ? "visible" : "hidden"),
+    });
     render(st.progress);
     return () => {
       io.disconnect();
@@ -53,9 +77,21 @@ export default function Packaging() {
   }, []);
 
   return (
-    <section id="unboxing" ref={section} className="relative h-[1350vh] bg-ink">
-      <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
-        <PackagingScene progress={progress.current} active={active} />
+    <section
+      id="unboxing"
+      ref={section}
+      className="relative z-10"
+      style={{ height: `${UNBOX_VH}vh`, marginTop: `-${DISSOLVE_VH + 100}vh` }}
+    >
+      <div ref={stage} className="invisible sticky top-0 h-[100svh] w-full overflow-hidden">
+        <div ref={backdrop} className="absolute inset-0 bg-ink opacity-0" />
+        <div ref={film} className="absolute inset-0 opacity-0">
+          <PackagingScene progress={progress.current} active={active} />
+        </div>
+        <div
+          ref={vignette}
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(5,4,3,0.7)_100%)] opacity-0"
+        />
 
         {packagingBeats.map((b, i) => (
           <div

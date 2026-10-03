@@ -37,7 +37,7 @@ export default function Saffron() {
       <div className="saffron-pin relative h-[100svh] overflow-hidden">
         <div className="saffron-glow absolute inset-0 bg-[radial-gradient(ellipse_45%_40%_at_50%_55%,rgba(150,18,8,0.55),rgba(90,10,5,0.25)_45%,transparent_75%)]" />
         <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
-          <p className="kicker saffron-sub mb-6">Chapter IV — The Saffron</p>
+          <p className="kicker saffron-sub mb-6">Chapter V — The Saffron</p>
           <h2 className="saffron-title font-display text-6xl font-light leading-[0.95] md:text-[9vw]">
             <span className="block overflow-hidden"><span className="inline-block">The red gold</span></span>
             <span className="block overflow-hidden"><em className="gold-text inline-block pb-2">of Khorasan</em></span>

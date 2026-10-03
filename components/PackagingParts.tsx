@@ -1,0 +1,137 @@
+"use client";
+
+import { useMemo } from "react";
+import * as THREE from "three";
+import { DIM, type BrandTextures, bagParts, ribbonGeometry } from "@/lib/packaging";
+
+/**
+ * Shared pieces of the packaging model, used both by the unboxing stage and by the
+ * saffron field (where the bag first appears among the crocus rows).
+ */
+
+export function useMaterials(tx: BrandTextures) {
+  return useMemo(() => {
+    const kraft = (repeat = 1, offset = 0) => {
+      const map = tx.kraft.clone();
+      map.repeat.set(repeat, repeat);
+      map.offset.set(offset, offset * 0.7);
+      map.needsUpdate = true;
+      return new THREE.MeshStandardMaterial({
+        map,
+        bumpMap: tx.kraftBump,
+        bumpScale: 0.6,
+        roughness: 0.9,
+        color: "#efe4d2",
+      });
+    };
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: "#ffffff",
+      transmission: 1,
+      thickness: 0.06,
+      roughness: 0.03,
+      ior: 1.5,
+      specularIntensity: 1,
+      envMapIntensity: 1.4,
+      clearcoat: 1,
+      clearcoatRoughness: 0.02,
+      side: THREE.DoubleSide,
+    });
+    const tintedGlass = (color: string, attenuation: string) =>
+      new THREE.MeshPhysicalMaterial({
+        color,
+        transmission: 0.55,
+        thickness: 0.08,
+        roughness: 0.08,
+        ior: 1.5,
+        attenuationColor: new THREE.Color(attenuation),
+        attenuationDistance: 0.05,
+        emissive: new THREE.Color(attenuation),
+        emissiveIntensity: 0.12,
+        envMapIntensity: 1.5,
+        clearcoat: 1,
+        clearcoatRoughness: 0.03,
+      });
+    return {
+      kraftOuter: kraft(1, 0.1),
+      kraftLidSide: kraft(1, 0.3),
+      kraftInner: (() => {
+        const m = kraft(1.4, 0.5);
+        m.color.set("#d9c39c");
+        return m;
+      })(),
+      lidTop: new THREE.MeshStandardMaterial({
+        color: "#efe4d2",
+        map: tx.lidTop,
+        bumpMap: tx.lidTopBump,
+        bumpScale: 2.5,
+        roughness: 0.86,
+      }),
+      bag: (() => {
+        const m = kraft(1.2, 0.2);
+        m.color.set("#f6eee0");
+        m.side = THREE.DoubleSide;
+        return m;
+      })(),
+      bagFront: new THREE.MeshStandardMaterial({ color: "#f6eee0", map: tx.bagFront, roughness: 0.85, bumpMap: tx.kraftBump, bumpScale: 0.4 }),
+      ribbon: new THREE.MeshPhysicalMaterial({
+        color: "#4b1f8f",
+        roughness: 0.35,
+        sheen: 1,
+        sheenColor: new THREE.Color("#b58cff"),
+        sheenRoughness: 0.3,
+        side: THREE.DoubleSide,
+      }),
+      violet: new THREE.MeshStandardMaterial({ map: tx.violetPaper, roughness: 0.7, side: THREE.DoubleSide }),
+      foam: new THREE.MeshStandardMaterial({ color: "#121214", roughness: 1, bumpMap: tx.foam, bumpScale: 3 }),
+      glass,
+      violetGlass: tintedGlass("#8f6be6", "#5a2fb0"),
+      pinkGlass: tintedGlass("#f0cdeb", "#c98bd8"),
+      greenGlass: tintedGlass("#8fd07a", "#2f7a2a"),
+      clearGlass: tintedGlass("#ffffff", "#ffffff"),
+      seal: new THREE.MeshPhysicalMaterial({ map: tx.seal, color: "#b9a58c", roughness: 0.35, clearcoat: 1, transmission: 0.25, thickness: 0.01 }),
+      saffron: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78 }),
+      twine: new THREE.MeshStandardMaterial({ color: "#b48d5e", roughness: 0.95 }),
+      cardFront: new THREE.MeshStandardMaterial({ map: tx.cardFront, roughness: 0.85 }),
+      cardBack: new THREE.MeshStandardMaterial({ map: tx.cardBack, roughness: 0.85 }),
+      cardEdge: new THREE.MeshStandardMaterial({ color: "#c9a878", roughness: 0.9 }),
+      floor: new THREE.MeshStandardMaterial({ color: "#030303", roughness: 0.55, metalness: 0.0, transparent: true, opacity: 0 }),
+    };
+  }, [tx]);
+}
+
+export type Mats = ReturnType<typeof useMaterials>;
+
+/** The kraft carrier bag with violet ribbon handles. */
+export function Bag({ m }: { m: Mats }) {
+  const parts = useMemo(() => bagParts(), []);
+  const handle = useMemo(() => {
+    const { w, d, h } = DIM.bag;
+    const make = (z: number) =>
+      ribbonGeometry(
+        new THREE.CatmullRomCurve3([
+          new THREE.Vector3(-w * 0.2, h - 0.12, z),
+          new THREE.Vector3(-w * 0.2, h + 0.14, z),
+          new THREE.Vector3(-w * 0.13, h + 0.4, z),
+          new THREE.Vector3(0, h + 0.48, z),
+          new THREE.Vector3(w * 0.13, h + 0.4, z),
+          new THREE.Vector3(w * 0.2, h + 0.14, z),
+          new THREE.Vector3(w * 0.2, h - 0.12, z),
+        ]),
+        0.1,
+        96,
+      );
+    return [make(d / 2 + 0.006), make(-d / 2 - 0.006)];
+  }, []);
+  return (
+    <group>
+      <mesh geometry={parts.front} material={m.bagFront} castShadow receiveShadow />
+      <mesh geometry={parts.back} material={m.bag} castShadow receiveShadow />
+      <mesh geometry={parts.sides} material={m.bag} castShadow receiveShadow />
+      <mesh geometry={parts.bottom} material={m.bag} receiveShadow />
+      <mesh geometry={parts.hem} material={m.bag} />
+      {handle.map((g, i) => (
+        <mesh key={i} geometry={g} material={m.ribbon} castShadow />
+      ))}
+    </group>
+  );
+}

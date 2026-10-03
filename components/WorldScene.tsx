@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { exportOrigin, markets } from "@/lib/content";
+import { heroThreadGeometry } from "@/lib/packaging";
 
 type Progress = { current: number };
 
@@ -230,6 +231,74 @@ function Origin() {
   );
 }
 
+
+/**
+ * The two threads from the vessel arrive from above, drifting toward the mouse on the way,
+ * and settle on Khorasan — where the routes then begin.
+ */
+function ArrivingThreads({ progress, globe }: { progress: Progress; globe: React.RefObject<THREE.Group | null> }) {
+  const geos = useMemo(() => [heroThreadGeometry(3), heroThreadGeometry(8)], []);
+  const mat = useMemo(
+    () =>
+      // The globe scene is unlit, so the threads carry their own colour (and glow under bloom).
+      new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color(1.6, 1.25, 1.1), toneMapped: false }),
+    [],
+  );
+  const refs = useRef<(THREE.Group | null)[]>([]);
+  const { camera } = useThree();
+  const v = useMemo(
+    () => ({
+      land: new THREE.Vector3(),
+      start: new THREE.Vector3(),
+      hit: new THREE.Vector3(),
+      lean: new THREE.Vector3(),
+      plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), -1.2),
+    }),
+    [],
+  );
+
+  useFrame((state, dt) => {
+    const g0 = globe.current;
+    if (!g0) return;
+    const p = progress.current;
+    const fly = ss(p, 0.0, 0.11);
+    latLon(exportOrigin.lat, exportOrigin.lon, 1.02, v.land).applyMatrix4(g0.matrixWorld);
+
+    state.raycaster.setFromCamera(state.pointer, camera);
+    if (state.raycaster.ray.intersectPlane(v.plane, v.hit)) {
+      const target = v.hit.sub(v.land).multiplyScalar(0.3).clampLength(0, 0.6);
+      v.lean.x = THREE.MathUtils.damp(v.lean.x, target.x, 2.5, dt);
+      v.lean.y = THREE.MathUtils.damp(v.lean.y, target.y, 2.5, dt);
+    }
+
+    refs.current.forEach((g, k) => {
+      if (!g) return;
+      const e = THREE.MathUtils.smootherstep(fly, k * 0.12, 0.88 + k * 0.12);
+      g.visible = p < 0.13 && e < 0.999;
+      if (!g.visible) return;
+      // Enter from the top right (where they left the vessel), curve down onto Mashhad.
+      // Just above the top edge of the frame — where they left the previous chapter.
+      v.start.set(0.15 + k * 0.3, 0.95 + k * 0.06, 1.6);
+      g.position.copy(v.start).lerp(v.land, e);
+      g.position.y += Math.sin(e * Math.PI) * 0.35;
+      g.position.addScaledVector(v.lean, Math.sin(e * Math.PI));
+      g.lookAt(v.land);
+      g.rotateZ(state.clock.elapsedTime * 0.6 + k);
+      g.scale.setScalar(THREE.MathUtils.lerp(3.2, 0.2, Math.pow(e, 1.6)));
+    });
+  });
+
+  return (
+    <group>
+      {geos.map((geo, k) => (
+        <group key={k} ref={(el) => void (refs.current[k] = el)} visible={false}>
+          <mesh geometry={geo} material={mat} position={[0, 0, -0.26]} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
 /** Projects city positions to the screen so the DOM labels can follow the globe. */
 function Labels({
   labels,
@@ -297,6 +366,7 @@ function Globe({ progress, data, labels }: { progress: Progress; data: number[];
         ))}
       </group>
       <Atmosphere />
+      <ArrivingThreads progress={progress} globe={globe} />
       <Labels labels={labels} progress={progress} globe={globe} />
     </group>
   );

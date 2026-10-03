@@ -72,7 +72,7 @@ export default function World() {
 
         <div ref={intro} className="pointer-events-none absolute inset-0 opacity-0">
           <div className="absolute left-6 top-24 max-w-sm md:left-16 md:top-1/2 md:-translate-y-1/2">
-            <p className="kicker mb-5">Chapter V — Export</p>
+            <p className="kicker mb-5">Chapter IV — Export</p>
             <h2 className="font-display text-4xl font-light leading-[1.05] md:text-6xl">
               From Khorasan
               <br />

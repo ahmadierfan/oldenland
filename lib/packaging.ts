@@ -445,3 +445,52 @@ export function bagParts() {
   hem.translate(0, h - 0.09, 0);
   return { front, back, sides: mergeGeometries(sides)!, bottom, hem };
 }
+
+/**
+ * A single show-quality saffron thread for close-ups: a thin pale-orange style at the base,
+ * a long deep-crimson stigma, and the flared, slightly frilled trumpet tip of a top grade thread.
+ * Runs along +z, base at the origin.
+ */
+export function heroThreadGeometry(seed: number) {
+  const r = (n: number) => Math.sin(seed * 57.3 + n * 19.1) * 0.5 + 0.5;
+  const len = 0.26;
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0.012 + (r(1) - 0.5) * 0.02, (r(2) - 0.5) * 0.015, len * 0.28),
+    new THREE.Vector3(-0.01 + (r(3) - 0.5) * 0.03, 0.018 + (r(4) - 0.5) * 0.015, len * 0.6),
+    new THREE.Vector3(0.008 + (r(5) - 0.5) * 0.02, 0.03, len * 0.84),
+    new THREE.Vector3((r(6) - 0.5) * 0.02, 0.026, len),
+  ]);
+  const radial = 10;
+  const tubular = 90;
+  const g = new THREE.TubeGeometry(curve, tubular, 1, radial, false);
+  const pos = g.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const style = new THREE.Color("#e0973c");
+  const crimson = new THREE.Color("#6d0804");
+  const tip = new THREE.Color("#9c1309");
+  const c = new THREE.Color();
+  const p = new THREE.Vector3();
+  const centre = new THREE.Vector3();
+  for (let i = 0; i <= tubular; i++) {
+    const t = i / tubular;
+    curve.getPointAt(t, centre);
+    // radius: hair-thin style, a slowly widening stigma, then the open trumpet
+    const radius =
+      0.0016 +
+      0.0013 * THREE.MathUtils.smoothstep(t, 0.08, 0.75) +
+      0.0055 * Math.pow(THREE.MathUtils.smoothstep(t, 0.8, 1), 1.8);
+    c.copy(style).lerp(crimson, THREE.MathUtils.smoothstep(t, 0.04, 0.14)).lerp(tip, THREE.MathUtils.smoothstep(t, 0.85, 1));
+    for (let j = 0; j <= radial; j++) {
+      const k = i * (radial + 1) + j;
+      p.fromBufferAttribute(pos, k).sub(centre); // unit-radius offset from the centre line
+      const frill = 1 + 0.18 * Math.sin((j / radial) * Math.PI * 2 * 5) * THREE.MathUtils.smoothstep(t, 0.93, 1);
+      p.multiplyScalar(radius * frill).add(centre);
+      pos.setXYZ(k, p.x, p.y, p.z);
+      colors.set([c.r, c.g, c.b], k * 3);
+    }
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  g.computeVertexNormals();
+  return g;
+}

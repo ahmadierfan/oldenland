@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { BAG_SCALE, BAG_SPOT, UNBOX_CAM0, UNBOX_FOV } from "@/lib/handoff";
+import { type BrandTextures, loadBrandTextures, DIM } from "@/lib/packaging";
+import { Bag, useMaterials } from "./PackagingParts";
 import * as THREE from "three";
 import {
   PETAL_BASE_Y,
@@ -77,6 +80,22 @@ function groundHeight(x: number, z: number) {
   const lumps = (fbm(x * 0.9, z * 0.9, 3) - 0.5) * 0.06;
   const rolling = (fbm(x * 0.035 + 7.3, z * 0.035 - 2.1, 4) - 0.5) * THREE.MathUtils.lerp(0.6, 5, THREE.MathUtils.smoothstep(-z, 20, 150));
   return furrow + lumps + rolling;
+}
+
+/** The bag's footing in the field, and the camera framing the unboxing opens with. */
+const BAG_POS = new THREE.Vector3(BAG_SPOT.x, groundHeight(BAG_SPOT.x, BAG_SPOT.z), BAG_SPOT.z);
+const CAM_END = {
+  pos: UNBOX_CAM0.pos.map((v, i) => BAG_POS.getComponent(i) + v * BAG_SCALE) as [number, number, number],
+  look: UNBOX_CAM0.look.map((v, i) => BAG_POS.getComponent(i) + v * BAG_SCALE) as [number, number, number],
+};
+/** The bag opening, where the stigmas come to rest. */
+const BAG_MOUTH = BAG_POS.clone().add(new THREE.Vector3(0, DIM.bag.h * BAG_SCALE * 0.92, 0));
+
+function distToSegment(px: number, pz: number, ax: number, az: number, bx: number, bz: number) {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const t = THREE.MathUtils.clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz), 0, 1);
+  return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
 }
 
 /** Deterministic random so the field is the same on every visit. */
@@ -380,9 +399,11 @@ function Field({ count, wind }: { count: number; wind: { uTime: { value: number 
           if (placed >= count) break outer;
           const x = cx + (r() - 0.5) * 0.14;
           const zz = z + (r() - 0.5) * 0.12;
-          // Keep a walking lane for the camera and space around the hero flower.
+          // Keep a walking lane for the camera, space around the hero flower,
+          // and a clearing around the bag with an open line of sight to it.
           if (Math.abs(x) < 0.4 && zz > -0.8) continue;
           if (Math.hypot(x, zz) < 0.6) continue;
+          if (distToSegment(x, zz, BAG_SPOT.x, BAG_SPOT.z, CAM_END.pos[0], CAM_END.pos[2]) < 0.42) continue;
           p.set(x, groundHeight(x, zz), zz);
           e.set((r() - 0.5) * 0.2, r() * Math.PI * 2, (r() - 0.5) * 0.2);
           q.setFromEuler(e);
@@ -466,6 +487,8 @@ function HeroFlower({ progress }: { progress: Progress }) {
   );
 
   const y0 = groundHeight(0, 0);
+  const origin = useMemo(() => new THREE.Vector3(0, y0, 0), [y0]);
+  const tmp = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((state) => {
     const p = progress.current;
@@ -477,14 +500,24 @@ function HeroFlower({ progress }: { progress: Progress }) {
       g.rotation.x = open * (inner ? 0.85 : 1) + Math.sin(t * 1.4 + i) * 0.015;
     });
 
-    // Stigmas lift out of the bloom and drift upward, turning slowly.
-    const lift = band(p, 0.72, 0.95);
+    // Stigmas lift out of the bloom, then glide one after another into the waiting bag.
+    const lift = band(p, 0.7, 0.82);
     stigmas.current.forEach((g, i) => {
       if (!g) return;
       const a = (i / 3) * Math.PI * 2 + 0.3;
       const spread = 0.05 * lift;
-      g.position.set(Math.sin(a) * spread, PETAL_BASE_Y + lift * (0.16 + i * 0.03) + Math.sin(t * 1.2 + i * 2) * 0.006 * lift, Math.cos(a) * spread);
+      const hover = new THREE.Vector3(
+        Math.sin(a) * spread,
+        PETAL_BASE_Y + lift * (0.16 + i * 0.03) + Math.sin(t * 1.2 + i * 2) * 0.006 * lift,
+        Math.cos(a) * spread,
+      );
+      const go = band(p, 0.83 + i * 0.025, 0.93 + i * 0.025);
+      const mouth = tmp.copy(BAG_MOUTH).sub(origin);
+      // Arc over to the bag: lerp, plus a lift that peaks halfway.
+      g.position.copy(hover).lerp(mouth, go);
+      g.position.y += Math.sin(go * Math.PI) * 0.18;
       g.rotation.set(lift * (0.6 + Math.sin(t * 0.7 + i) * 0.15), a + lift * (t * 0.3), lift * 0.4);
+      g.scale.setScalar(1 - band(go, 0.85, 1) * 0.999);
     });
 
     stigmaMat.emissiveIntensity = 0.15 + lift * 1.6;
@@ -528,6 +561,31 @@ function HeroFlower({ progress }: { progress: Progress }) {
         </group>
       ))}
       <pointLight ref={light} position={[0.25, 0.45, 0.35]} color="#ffb070" intensity={0} distance={2.5} decay={1.6} />
+    </group>
+  );
+}
+
+/** The Oldenland bag waiting among the rows, with the gift box inside. */
+function FieldBag() {
+  const [tx, setTx] = useState<BrandTextures | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadBrandTextures().then((t) => alive && setTx(t));
+    return () => void (alive = false);
+  }, []);
+  return tx ? <FieldBagModel tx={tx} /> : null;
+}
+
+function FieldBagModel({ tx }: { tx: BrandTextures }) {
+  const m = useMaterials(tx);
+  const { w, base, lid } = DIM.box;
+  return (
+    <group position={BAG_POS} scale={BAG_SCALE}>
+      <Bag m={m} />
+      {/* the closed gift box, seen through the bag opening */}
+      <mesh position={[0, 0.03 + (base - 0.12 + lid) / 2, 0]} material={m.kraftLidSide}>
+        <boxGeometry args={[w, base - 0.12 + lid, w]} />
+      </mesh>
     </group>
   );
 }
@@ -600,8 +658,9 @@ const CAM_KEYS: { p: number; pos: [number, number, number]; look: [number, numbe
   { p: 0.22, pos: [0.1, 2.0, 10], look: [0, 0.8, -25] },
   { p: 0.42, pos: [0.15, 0.85, 4.5], look: [0, 0.35, -8] },
   { p: 0.58, pos: [0.12, 0.45, 1.5], look: [0, 0.2, 0] },
-  { p: 0.74, pos: [0.08, 0.36, 0.62], look: [0, 0.22, 0] },
-  { p: 1.0, pos: [0.02, 0.5, 0.52], look: [0, 0.4, 0] },
+  { p: 0.72, pos: [0.08, 0.36, 0.62], look: [0, 0.22, 0] },
+  { p: 0.84, pos: [0.35, 0.62, 1.15], look: [0.35, 0.36, -0.3] },
+  { p: 1.0, pos: CAM_END.pos, look: CAM_END.look },
 ];
 
 function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: number } } }) {
@@ -668,12 +727,21 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
     curves.look.getPoint(u, v.look);
 
     // Subtle hand-held parallax that follows the pointer, smaller when we are close.
-    const near = THREE.MathUtils.lerp(1, 0.12, band(p, 0.4, 0.75));
+    // The last frame must match the unboxing's first frame exactly, so motion settles to zero.
+    const settle = 1 - band(p, 0.88, 0.99);
+    const near = THREE.MathUtils.lerp(1, 0.12, band(p, 0.4, 0.75)) * settle;
     v.pos.x += state.pointer.x * 0.35 * near;
     v.pos.y += state.pointer.y * 0.12 * near;
-    v.pos.y += Math.sin(state.clock.elapsedTime * 0.5) * 0.01;
+    v.pos.y += Math.sin(state.clock.elapsedTime * 0.5) * 0.01 * settle;
     camera.position.copy(v.pos);
     camera.lookAt(v.look);
+    const cam = camera as THREE.PerspectiveCamera;
+    const mobile = state.size.width < 768;
+    const fov = THREE.MathUtils.lerp(mobile ? 55 : 42, mobile ? UNBOX_FOV.mobile : UNBOX_FOV.desktop, band(p, 0.84, 1));
+    if (Math.abs(cam.fov - fov) > 1e-3) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
 
     // Night → dawn.
     const dawn = band(p, 0.05, 0.55);
@@ -683,8 +751,8 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
     u_.uSun.value = 0.25 + dawn * 1.1;
     (u_.uSunDir.value as THREE.Vector3).set(-0.25, -0.02 + dawn * 0.09, -1);
     fog.color.copy(u_.uHorizon.value).lerp(u_.uTop.value, 0.55);
-    fog.near = THREE.MathUtils.lerp(3, 1.2, band(p, 0.45, 0.8));
-    fog.far = THREE.MathUtils.lerp(95, 18, band(p, 0.5, 0.85));
+    fog.near = THREE.MathUtils.lerp(THREE.MathUtils.lerp(3, 1.2, band(p, 0.45, 0.8)), 5, band(p, 0.86, 1));
+    fog.far = THREE.MathUtils.lerp(THREE.MathUtils.lerp(95, 18, band(p, 0.5, 0.85)), 40, band(p, 0.86, 1));
     if (sky.current) sky.current.position.copy(camera.position);
     // Distant ranges share the horizon haze, so they fade the same way the sky brightens.
     ranges.uHaze.value.copy(fog.color);
@@ -731,6 +799,7 @@ export default function OriginScene({ progress, active }: { progress: Progress; 
       <Field count={mobile ? 1400 : 3200} wind={wind} />
       <Stones count={mobile ? 500 : 1400} />
       <HeroFlower progress={progress} />
+      <FieldBag />
       <Dust count={mobile ? 350 : 900} />
     </Canvas>
   );

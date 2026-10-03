@@ -13,8 +13,8 @@ export const brand = {
 export const nav = [
   { label: "Story", href: "#origin" },
   { label: "Packaging", href: "#unboxing" },
-  { label: "Saffron", href: "#saffron" },
   { label: "Export", href: "#world" },
+  { label: "Saffron", href: "#saffron" },
 ];
 
 /** Text beats over the 3D field. `at` / `until` are 0–1 positions in the Origin scroll. */
@@ -41,8 +41,8 @@ export const originBeats = [
     body: "Every flower is lifted from the earth by hand while its petals are still closed against the cold, then carried in baskets to the village.",
   },
   {
-    at: 0.73,
-    until: 0.88,
+    at: 0.72,
+    until: 0.84,
     kicker: "Three threads",
     title: "Only three crimson stigmas per flower",
     body: "Separated one by one and slowly dried, they become the most precious spice on earth.",
@@ -52,14 +52,14 @@ export const originBeats = [
 
 /** Captions for the 3D unboxing. `at`/`until` are positions in the section's scroll (0–1). */
 export const packagingBeats = [
-  { at: 0.0, until: 0.09, index: "01", name: "The Carrier", title: "A kraft bag, tied in royal violet", body: "Natural fibre and silk-touch ribbon handles. The first promise of what is inside." },
-  { at: 0.11, until: 0.27, index: "02", name: "The Gift Box", title: "Lifted out, like an heirloom", body: "A rigid two-piece box wrapped in textured kraft." },
-  { at: 0.3, until: 0.4, index: "03", name: "The Emblem", title: "A saffron flame, cut into the lid", body: "Our die-cut emblem reveals the violet beneath — the colour of the crocus itself." },
-  { at: 0.42, until: 0.5, index: "04", name: "The Violet Case", title: "Open the lid. The colour of the flower.", body: "A deep violet case and a black foam cradle hold the vessel perfectly still." },
-  { at: 0.5, until: 0.58, index: "05", name: "The Story Card", title: "Where your saffron was grown", body: "A kraft card, tied with natural twine, tells the story of the harvest." },
-  { at: 0.59, until: 0.67, index: "06", name: "The Crocus Crown", title: "A flower, made in glass", body: "Every stopper is a hand-shaped glass crocus — violet petals, green leaves." },
-  { at: 0.69, until: 0.81, index: "07", name: "The Vessel", title: "Hand-blown glass, sealed by hand", body: "The saffron rests inside a wide glass vessel, sealed until the moment it is opened." },
-  { at: 0.84, until: 1.2, index: "08", name: "The Saffron", title: "And finally, the red gold", body: "Deep crimson threads, released into the light — the harvest of 150,000 flowers in every kilogram." },
+  { at: 0.03, until: 0.15, index: "01", name: "The Carrier", title: "Waiting at the edge of the field", body: "A kraft bag, tied in royal violet — the first promise of what the harvest becomes." },
+  { at: 0.18, until: 0.34, index: "02", name: "The Gift Box", title: "Lifted out, like an heirloom", body: "A rigid two-piece box wrapped in textured kraft." },
+  { at: 0.36, until: 0.445, index: "03", name: "The Emblem", title: "A saffron flame, cut into the lid", body: "Our die-cut emblem reveals the violet beneath — the colour of the crocus itself." },
+  { at: 0.46, until: 0.53, index: "04", name: "The Violet Case", title: "Open the lid. The colour of the flower.", body: "A deep violet case and a black foam cradle hold the vessel perfectly still." },
+  { at: 0.535, until: 0.6, index: "05", name: "The Story Card", title: "Where your saffron was grown", body: "A kraft card, tied with natural twine, tells the story of the harvest." },
+  { at: 0.605, until: 0.675, index: "06", name: "The Crocus Crown", title: "A flower, made in glass", body: "Every stopper is a hand-shaped glass crocus — violet petals, green leaves." },
+  { at: 0.68, until: 0.79, index: "07", name: "The Vessel", title: "Hand-blown glass, sealed by hand", body: "The saffron rests inside a wide glass vessel, sealed until the moment it is opened." },
+  { at: 0.83, until: 1.2, index: "08", name: "The Proof", title: "Two threads tell you everything", body: "Deep crimson from tip to base, flared trumpet ends, no pale style — the mark of Super Negin, Khorasan's finest cut. Move your mouse — then keep scrolling to follow them to the world." },
 ];
 
 /** Product specification. Values marked "confirm" should be checked against your lab reports. */
