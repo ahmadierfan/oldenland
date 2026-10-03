@@ -2,8 +2,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import Preloader from "@/components/Preloader";
 import Nav from "@/components/Nav";
 import Origin from "@/components/Origin";
-import Unboxing from "@/components/Unboxing";
-import Craft from "@/components/Craft";
+import Packaging from "@/components/Packaging";
 import Saffron from "@/components/Saffron";
 import Export from "@/components/Export";
 import Footer from "@/components/Footer";
@@ -16,8 +15,7 @@ export default function Home() {
       <Nav />
       <main>
         <Origin />
-        <Unboxing />
-        <Craft />
+        <Packaging />
         <Saffron />
         <Export />
       </main>

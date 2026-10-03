@@ -26,12 +26,6 @@ export default function Export() {
         ease: "power3.out",
         scrollTrigger: { trigger: ".export-grid", start: "top 85%", end: "top 45%", scrub: 1 },
       });
-      gsap.fromTo(".bag-img", { yPercent: -8, scale: 1.1 }, {
-        yPercent: 8,
-        scale: 1,
-        ease: "none",
-        scrollTrigger: { trigger: ".bag-frame", start: "top bottom", end: "bottom top", scrub: true },
-      });
     },
     { scope: root },
   );
@@ -54,9 +48,9 @@ export default function Export() {
       </div>
 
       <div className="mx-auto max-w-7xl px-6 py-28 md:px-16 md:py-40">
-        <div className="grid gap-16 md:grid-cols-[1.1fr_1fr] md:items-end">
+        <div>
           <div>
-            <p className="kicker mb-6">Chapter VI — Export</p>
+            <p className="kicker mb-6">Chapter V — Export</p>
             <h2 className="font-display text-5xl font-light leading-[1.02] md:text-7xl">
               Built for importers
               <br />
@@ -66,15 +60,6 @@ export default function Export() {
               We work with distributors, fine-food retailers, hotels and gifting companies — supplying saffron that looks
               as precious on the shelf as it tastes in the kitchen.
             </p>
-          </div>
-          <div className="bag-frame relative aspect-[4/3] overflow-hidden">
-            <img
-              src="/images/bag-inside-1600.webp"
-              alt="The Oldenland gift box inside its kraft carrier bag"
-              loading="lazy"
-              className="bag-img absolute inset-0 h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-2/70 to-transparent" />
           </div>
         </div>
 

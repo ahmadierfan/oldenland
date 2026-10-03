@@ -23,7 +23,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: "OLDENLAND — Persian Saffron",
     description: "Hand-harvested saffron from Khorasan, in a hand-made glass crocus vessel.",
-    images: ["/images/vessel-crown-1600.webp"],
   },
 };
 

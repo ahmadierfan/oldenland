@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { packagingBeats } from "@/lib/content-packaging";
+import { packagingBeats } from "@/lib/content";
 
 gsap.registerPlugin(ScrollTrigger);
 

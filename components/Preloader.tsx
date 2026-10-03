@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { frames } from "@/lib/frames";
 
-/** Holds the curtain until the fonts and the first pass of film frames are in (max ~7s). */
+/** Holds the curtain until the fonts are in, with a short minimum so the reveal feels deliberate. */
 export default function Preloader() {
   const [done, setDone] = useState(false);
   const [gone, setGone] = useState(false);
@@ -11,12 +10,10 @@ export default function Preloader() {
   const line = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    frames.start();
     window.history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
     window.__lenis?.stop();
 
-    const target = 48; // roughly the every-8th-frame pass
     let fonts = false;
     let shown = 0;
     let raf = 0;
@@ -27,9 +24,8 @@ export default function Preloader() {
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
-      const real = Math.min(1, frames.loaded / target) * (fonts ? 1 : 0.9);
-      const timeout = (performance.now() - started) / 7000;
-      const goal = Math.max(real, Math.min(timeout, 1));
+      const elapsed = (performance.now() - started) / 1800;
+      const goal = Math.min(elapsed, fonts ? 1 : 0.85, 1);
       shown += (goal - shown) * (1 - Math.exp(-dt * 5));
       if (num.current) num.current.textContent = String(Math.round(shown * 100)).padStart(2, "0");
       if (line.current) line.current.style.transform = `scaleX(${shown})`;

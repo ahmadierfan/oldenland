@@ -12,8 +12,7 @@ export const brand = {
 
 export const nav = [
   { label: "Story", href: "#origin" },
-  { label: "Unboxing", href: "#unboxing" },
-  { label: "Craft", href: "#craft" },
+  { label: "Packaging", href: "#unboxing" },
   { label: "Saffron", href: "#saffron" },
   { label: "Export", href: "#export" },
 ];
@@ -51,81 +50,15 @@ export const originBeats = [
   },
 ];
 
-/** Captions for the scroll-scrubbed unboxing film. Ranges are frame indices (0–364). */
-export const unboxingStages = [
-  {
-    from: 0,
-    to: 28,
-    index: "01",
-    name: "The Carrier",
-    title: "A kraft bag, tied in royal violet",
-    body: "Natural fibre, silk-touch ribbon handles and the Oldenland emblem — the first promise of what is inside.",
-  },
-  {
-    from: 28,
-    to: 122,
-    index: "02",
-    name: "The Gift Box",
-    title: "Lifted out, like an heirloom",
-    body: "A rigid two-piece box wrapped in textured kraft, crowned with our violet saffron-flame emblem.",
-  },
-  {
-    from: 122,
-    to: 196,
-    index: "03",
-    name: "The Violet Case",
-    title: "Open the lid. The colour of the flower.",
-    body: "An inner case in deep crocus violet, lined with black foam that cradles the vessel in place.",
-  },
-  {
-    from: 196,
-    to: 300,
-    index: "04",
-    name: "The Crocus Crown",
-    title: "A hand-made glass flower",
-    body: "The stopper is a glass crocus — violet petals, green leaves — tied with a story card that tells you where your saffron was grown.",
-  },
-  {
-    from: 300,
-    to: 364,
-    index: "05",
-    name: "The Saffron",
-    title: "And finally, the gold itself",
-    body: "Deep red threads rest inside a hand-blown glass vessel — sealed, visible, and ready to be the centre of the table.",
-  },
-];
-
-export const craft = [
-  {
-    image: "bag",
-    name: "The Carrier",
-    detail: "Kraft paper bag · violet ribbon handles",
-    text: "Made to be carried through airports and given by hand. Sturdy, recyclable and unmistakably Oldenland.",
-  },
-  {
-    image: "emblem",
-    name: "The Gift Box",
-    detail: "Rigid two-piece box · textured kraft wrap",
-    text: "A heavy, structured box with a lift-off lid. The violet emblem traces a saffron flame.",
-  },
-  {
-    image: "inner-case",
-    name: "The Violet Case",
-    detail: "Crocus-violet inner tray · foam cradle",
-    text: "The moment the lid comes off, the box turns the colour of the flower itself.",
-  },
-  {
-    image: "crocus-stopper",
-    name: "The Crocus Crown",
-    detail: "Hand-shaped glass flower stopper",
-    text: "Every stopper is a small sculpture of the saffron crocus, made in glass, tied with natural twine.",
-  },
-  {
-    image: "story-card",
-    name: "The Story Card",
-    detail: "Letterpress-style card · origin story",
-    text: "A folded card that tells the story of the harvest and the land your saffron comes from.",
-  },
+/** Captions for the 3D unboxing. `at`/`until` are positions in the section's scroll (0–1). */
+export const packagingBeats = [
+  { at: 0.0, until: 0.11, index: "01", name: "The Carrier", title: "A kraft bag, tied in royal violet", body: "Natural fibre and silk-touch ribbon handles. The first promise of what is inside." },
+  { at: 0.14, until: 0.34, index: "02", name: "The Gift Box", title: "Lifted out, like an heirloom", body: "A rigid two-piece box wrapped in textured kraft." },
+  { at: 0.38, until: 0.5, index: "03", name: "The Emblem", title: "A saffron flame, cut into the lid", body: "Our die-cut emblem reveals the violet beneath — the colour of the crocus itself." },
+  { at: 0.53, until: 0.62, index: "04", name: "The Violet Case", title: "Open the lid. The colour of the flower.", body: "A deep violet case and a black foam cradle hold the vessel perfectly still." },
+  { at: 0.63, until: 0.72, index: "05", name: "The Story Card", title: "Where your saffron was grown", body: "A kraft card, tied with natural twine, tells the story of the harvest." },
+  { at: 0.73, until: 0.83, index: "06", name: "The Crocus Crown", title: "A flower, made in glass", body: "Every stopper is a hand-shaped glass crocus — violet petals, green leaves." },
+  { at: 0.86, until: 1.2, index: "07", name: "The Saffron", title: "And finally, the red gold", body: "Deep crimson threads, sealed in a hand-blown glass vessel." },
 ];
 
 /** Product specification. Values marked "confirm" should be checked against your lab reports. */
