@@ -53,7 +53,7 @@ export default function Packaging() {
   }, []);
 
   return (
-    <section id="unboxing" ref={section} className="relative h-[1100vh] bg-ink">
+    <section id="unboxing" ref={section} className="relative h-[1350vh] bg-ink">
       <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
         <PackagingScene progress={progress.current} active={active} />
 

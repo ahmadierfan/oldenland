@@ -30,6 +30,10 @@ const ss = (p: number, a: number, b: number) => THREE.MathUtils.smootherstep(p, 
 const lerp = THREE.MathUtils.lerp;
 
 /** Scroll positions (0–1) of each beat of the unboxing. */
+/** The unboxing plays over the first part of the scroll; the saffron finale takes the rest. */
+const UNBOX_END = 0.8;
+const FINALE = { seal: [0.81, 0.87] as const, stream: [0.84, 0.99] as const };
+
 export const T = {
   boxRise: [0.1, 0.26] as const,
   bagAway: [0.24, 0.34] as const,
@@ -240,17 +244,99 @@ function mulberry(seed: number) {
   };
 }
 
-function Jar({ m, saffron }: { m: Mats; saffron: number }) {
+function Jar({ m, saffron, finale }: { m: Mats; saffron: number; finale: Finale }) {
   const body = useMemo(() => jarGeometry(), []);
+  const sealRef = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const k = finale.seal;
+    if (!sealRef.current) return;
+    // The seal lifts, flips and drifts off to the side, opening the vessel.
+    sealRef.current.position.set(lerp(0, -0.55, k), 0.392 + lerp(0, 0.55, Math.sin(k * Math.PI * 0.6)), lerp(0, 0.25, k));
+    sealRef.current.rotation.set(lerp(0, 2.4, k), 0, lerp(0, 0.6, k));
+    sealRef.current.visible = k < 0.999;
+  });
   return (
     <group>
       <Saffron m={m} count={saffron} />
+      <SaffronStream m={m} finale={finale} count={240} />
       <mesh geometry={body} material={m.glass} renderOrder={2} />
-      <mesh position={[0, 0.392, 0]} material={m.seal}>
+      <mesh ref={sealRef} position={[0, 0.392, 0]} material={m.seal}>
         <cylinderGeometry args={[0.15, 0.15, 0.012, 48]} />
       </mesh>
     </group>
   );
+}
+
+type Finale = { seal: number; stream: number };
+
+/**
+ * The finale: threads rise one after another out of the neck and spiral outward into a slow,
+ * floating crimson halo around the vessel.
+ */
+function SaffronStream({ m, finale, count }: { m: Mats; finale: Finale; count: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const geo = useMemo(() => {
+    const g = saffronThreadGeometry(7).clone();
+    g.rotateY(-Math.PI / 2); // thread runs along +z, so lookAt() aims it along its path
+    g.scale(0.85, 0.85, 0.85);
+    return g;
+  }, []);
+  const mat = useMemo(() => {
+    const mm = m.saffron.clone();
+    mm.emissive = new THREE.Color("#7a0b03");
+    mm.emissiveIntensity = 0.5;
+    return mm;
+  }, [m]);
+  const seeds = useMemo(() => {
+    const r = mulberry(23);
+    return Array.from({ length: count }, (_, i) => ({
+      delay: (i / count) * 0.6 + r() * 0.04,
+      a0: (i * 2.399) % (Math.PI * 2), // golden-angle spacing: an even, ordered vortex
+      spin: 1.6 + r() * 0.5,
+      radius: 0.42 + r() * 0.3,
+      height: 0.12 + (i / count) * 0.4 + r() * 0.06,
+      bob: r() * Math.PI * 2,
+      roll: r() * Math.PI * 2,
+    }));
+  }, [count]);
+  const o = useMemo(() => new THREE.Object3D(), []);
+  const next = useMemo(() => new THREE.Vector3(), []);
+
+  const place = (sd: (typeof seeds)[number], s: number, t: number, out: THREE.Vector3) => {
+    const e = 1 - Math.pow(1 - s, 2.2); // decelerate as it reaches the halo
+    const ang = sd.a0 + e * sd.spin * Math.PI + t * 0.12;
+    const r = 0.05 + e * sd.radius;
+    const y = 0.4 + Math.sin(e * Math.PI * 0.5) * sd.height + Math.sin(t * 0.8 + sd.bob) * 0.02 * e;
+    return out.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
+  };
+
+  useFrame((state) => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const q = finale.stream;
+    const t = state.clock.elapsedTime;
+    mesh.visible = q > 0.001;
+    if (!mesh.visible) return;
+    seeds.forEach((sd, i) => {
+      const s = THREE.MathUtils.clamp((q - sd.delay) / 0.38, 0, 1);
+      if (s <= 0) {
+        o.scale.setScalar(0);
+      } else {
+        place(sd, s, t, o.position);
+        place(sd, Math.min(1, s + 0.02), t + 0.05, next);
+        if (next.distanceToSquared(o.position) < 1e-8) next.x += 0.001;
+        o.lookAt(next);
+        o.rotateZ(sd.roll);
+        o.scale.setScalar(Math.min(1, s * 6));
+      }
+      o.updateMatrix();
+      mesh.setMatrixAt(i, o.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mat.emissiveIntensity = 0.25 + q * 0.35;
+  });
+
+  return <instancedMesh ref={ref} args={[geo, mat, count]} frustumCulled={false} castShadow />;
 }
 
 /** The glass crocus stopper: violet outer petals, pale pink inner petals, clear pistil, green leaves, twine. */
@@ -322,6 +408,7 @@ function GiftBox({
     jar: React.RefObject<THREE.Group | null>;
     crown: React.RefObject<THREE.Group | null>;
     card: React.RefObject<THREE.Group | null>;
+    finale: Finale;
   };
 }) {
   const { w, base, lid, wall } = DIM.box;
@@ -373,7 +460,7 @@ function GiftBox({
           <circleGeometry args={[f.cavityR, 64]} />
         </mesh>
         <group ref={refs.jar} position={[0, jarY, 0]}>
-          <Jar m={m} saffron={3200} />
+          <Jar m={m} saffron={3200} finale={refs.finale} />
         </group>
         <group ref={refs.crown} position={[0, jarY + 0.395, 0]}>
           <CrocusCrown m={m} />
@@ -440,11 +527,16 @@ function Stage({ progress, tx }: { progress: Progress; tx: BrandTextures }) {
   );
   const v = useMemo(() => ({ pos: new THREE.Vector3(), look: new THREE.Vector3() }), []);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const finale = useMemo(() => ({ seal: 0, stream: 0 }), []);
 
   useFrame((state, dt) => {
     smooth.current = THREE.MathUtils.damp(smooth.current, progress.current, 4, dt);
-    const p = smooth.current;
+    const raw = smooth.current;
+    const p = Math.min(1, raw / UNBOX_END);
     const t = state.clock.elapsedTime;
+    const seal = ss(raw, ...FINALE.seal);
+    finale.stream = ss(raw, ...FINALE.stream);
+    finale.seal = seal;
 
     // Camera along its spline, keyed to scroll.
     let i = 0;
@@ -453,6 +545,10 @@ function Stage({ progress, tx }: { progress: Progress; tx: BrandTextures }) {
     const u = (i + local) / (CAM.length - 1);
     curves.pos.getPoint(u, v.pos);
     curves.look.getPoint(u, v.look);
+    // Finale: pull back and settle on the vessel so the whole halo of threads fits the frame.
+    const fin = ss(raw, 0.82, 0.98);
+    v.pos.lerp(tmp.set(0.35, 2.45, 5.0), fin);
+    v.look.lerp(tmp.set(0.35, 2.05, 0.3), fin);
     v.pos.x += state.pointer.x * 0.18;
     v.pos.y += state.pointer.y * 0.08;
     camera.position.copy(v.pos);
@@ -543,7 +639,7 @@ function Stage({ progress, tx }: { progress: Progress; tx: BrandTextures }) {
         <Bag m={m} />
       </group>
       <group ref={box}>
-        <GiftBox m={m} refs={{ lid, jar, crown, card }} />
+        <GiftBox m={m} refs={{ lid, jar, crown, card, finale }} />
       </group>
     </>
   );

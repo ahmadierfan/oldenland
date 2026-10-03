@@ -165,10 +165,11 @@ export function addWind(material: THREE.Material, uniforms: { uTime: { value: nu
           #ifdef USE_INSTANCING
             root = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
           #endif
-          float gust = sin(uTime * 0.6 + root.x * 0.15 + root.z * 0.1) * 0.5 + 0.5;
-          float sway = sin(uTime * 1.6 + root.x * 1.3 + root.z * 0.9) * (0.6 + gust);
-          transformed.x += sway * h * h * ${strength.toFixed(3)} * 4.0;
-          transformed.z += cos(uTime * 1.2 + root.z * 1.1) * h * h * ${strength.toFixed(3)} * 2.0;
+          // A light dawn breeze: slow, small, with occasional soft gusts rolling across the field.
+          float gust = smoothstep(0.55, 1.0, sin(uTime * 0.35 + root.x * 0.08 + root.z * 0.05) * 0.5 + 0.5);
+          float sway = sin(uTime * 0.9 + root.x * 1.3 + root.z * 0.9) * (0.35 + gust * 0.65);
+          transformed.x += sway * h * h * ${strength.toFixed(3)} * 1.6;
+          transformed.z += cos(uTime * 0.7 + root.z * 1.1) * h * h * ${strength.toFixed(3)} * 0.7;
         }`,
       );
   };

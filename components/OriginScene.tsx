@@ -19,14 +19,64 @@ type Progress = { current: number };
 /* Terrain                                                             */
 /* ------------------------------------------------------------------ */
 
-const ROW = 0.7; // furrow spacing
+const ROW = 1.05; // spacing between planted rows
 
+/* Small deterministic value-noise toolkit (same field on every visit). */
+function hash2(x: number, y: number) {
+  const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+function noise2(x: number, y: number) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uy = fy * fy * (3 - 2 * fy);
+  const a = hash2(ix, iy);
+  const b = hash2(ix + 1, iy);
+  const c = hash2(ix, iy + 1);
+  const d = hash2(ix + 1, iy + 1);
+  return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+}
+function fbm(x: number, y: number, octaves = 5) {
+  let v = 0;
+  let amp = 0.5;
+  let f = 1;
+  for (let i = 0; i < octaves; i++) {
+    v += amp * noise2(x * f, y * f);
+    f *= 2.03;
+    amp *= 0.5;
+  }
+  return v;
+}
+/** Ridged noise: sharp crests like eroded desert ranges. */
+function ridged(x: number, y: number, octaves = 6) {
+  let v = 0;
+  let amp = 0.55;
+  let f = 1;
+  let weight = 1;
+  for (let i = 0; i < octaves; i++) {
+    let n = 1 - Math.abs(noise2(x * f, y * f) * 2 - 1);
+    n *= n * weight;
+    weight = Math.min(1, n * 1.6);
+    v += n * amp;
+    f *= 2.1;
+    amp *= 0.5;
+  }
+  return v;
+}
+
+/**
+ * The field: shallow planting furrows near the camera, a gently rolling plain beyond.
+ * The mountains are separate layers (see <Mountains />), so the ground stays believable.
+ */
 function groundHeight(x: number, z: number) {
-  const rows = 0.035 * Math.sin((x / ROW) * Math.PI * 2) * (1 - THREE.MathUtils.smoothstep(-z, 30, 60));
-  const swell = 0.25 * Math.sin(x * 0.11 + 0.6) * Math.sin(z * 0.07);
-  const far = THREE.MathUtils.smoothstep(-z, 45, 95);
-  const mountains = far * (9 + 5 * Math.sin(x * 0.045 + 1.1) + 3.2 * Math.sin(x * 0.13 + 0.3) + 1.4 * Math.sin(x * 0.41));
-  return rows + swell * (1 - far) + mountains;
+  const nearRows = 1 - THREE.MathUtils.smoothstep(-z, 25, 45);
+  const furrow = 0.022 * Math.pow(Math.abs(Math.sin((x / ROW) * Math.PI)), 0.6) * nearRows;
+  const lumps = (fbm(x * 0.9, z * 0.9, 3) - 0.5) * 0.06;
+  const rolling = (fbm(x * 0.035 + 7.3, z * 0.035 - 2.1, 4) - 0.5) * THREE.MathUtils.lerp(0.6, 5, THREE.MathUtils.smoothstep(-z, 20, 150));
+  return furrow + lumps + rolling;
 }
 
 /** Deterministic random so the field is the same on every visit. */
@@ -39,23 +89,24 @@ function rng(seed: number) {
 
 function Ground() {
   const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(240, 240, 200, 200);
+    const g = new THREE.PlaneGeometry(320, 230, 260, 220);
     g.rotateX(-Math.PI / 2);
-    g.translate(0, 0, -60);
+    g.translate(0, 0, -95);
     const pos = g.attributes.position;
     const colors = new Float32Array(pos.count * 3);
-    const soil = new THREE.Color("#2e2016");
-    const dry = new THREE.Color("#4a3423");
-    const rock = new THREE.Color("#1a1310");
+    // Khorasan saffron soil: pale, dry clay-loam with darker damp patches.
+    const clay = new THREE.Color("#6b5440");
+    const dust = new THREE.Color("#8a735a");
+    const damp = new THREE.Color("#3e2f22");
+    const far = new THREE.Color("#5a4a3c");
     const c = new THREE.Color();
-    const r = rng(7);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i);
       const z = pos.getZ(i);
-      const y = groundHeight(x, z);
-      pos.setY(i, y);
-      c.copy(soil).lerp(dry, 0.5 + 0.5 * Math.sin(x * 0.7 + z * 0.3) * r());
-      c.lerp(rock, THREE.MathUtils.smoothstep(-z, 45, 90));
+      pos.setY(i, groundHeight(x, z));
+      const n = fbm(x * 0.18 + 3.1, z * 0.18, 4);
+      c.copy(clay).lerp(dust, THREE.MathUtils.smoothstep(n, 0.45, 0.7)).lerp(damp, THREE.MathUtils.smoothstep(n, 0.4, 0.2) * 0.7);
+      c.lerp(far, THREE.MathUtils.smoothstep(-z, 30, 120));
       colors.set([c.r, c.g, c.b], i * 3);
     }
     g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
@@ -65,7 +116,7 @@ function Ground() {
 
   const mat = useMemo(() => {
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
-    // Fine soil detail (clods, pebbles, straw) that holds up when the camera is at flower height.
+    // Fine soil detail (crumbs, clods, cracks, straw) that holds up at flower height.
     m.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nvarying vec3 vSoil;")
@@ -80,6 +131,11 @@ function Ground() {
             vec2 i = floor(p), f = fract(p);
             f = f * f * (3.0 - 2.0 * f);
             return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y);
+          }
+          float vfbm(vec2 p) {
+            float v = 0.0, a = 0.5;
+            for (int i = 0; i < 5; i++) { v += a * vnoise(p); p *= 2.07; a *= 0.5; }
+            return v;
           }`,
         )
         .replace(
@@ -87,10 +143,18 @@ function Ground() {
           `#include <color_fragment>
           {
             vec2 q = vSoil.xz;
-            float n = vnoise(q * 3.0) * 0.5 + vnoise(q * 11.0) * 0.3 + vnoise(q * 37.0) * 0.2;
-            float pebble = smoothstep(0.86, 0.93, vnoise(q * 60.0));
-            diffuseColor.rgb *= 0.7 + 0.6 * n;
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.26, 0.22), pebble * 0.35);
+            float dist = length(vSoil - cameraPosition);
+            float detail = 1.0 - smoothstep(6.0, 30.0, dist);
+            float crumbs = vfbm(q * 9.0);
+            float clods = smoothstep(0.55, 0.8, vfbm(q * 2.6 + 4.0));
+            float crack = smoothstep(0.035, 0.0, abs(vnoise(q * 3.3) - 0.5)) * 0.5;
+            float straw = smoothstep(0.93, 0.97, vnoise(vec2(q.x * 40.0, q.y * 3.0))) * 0.6;
+            vec3 col = diffuseColor.rgb;
+            col *= mix(1.0, 0.78 + 0.44 * crumbs, detail);
+            col *= mix(1.0, 1.0 + clods * 0.18, detail);
+            col *= 1.0 - crack * detail;
+            col = mix(col, vec3(0.62, 0.52, 0.36), straw * detail);
+            diffuseColor.rgb = col;
           }`,
         );
     };
@@ -98,6 +162,129 @@ function Ground() {
   }, []);
 
   return <mesh geometry={geo} material={mat} receiveShadow />;
+}
+
+/** Scattered small stones on the soil near the camera path. */
+function Stones({ count }: { count: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const geo = useMemo(() => {
+    const g = new THREE.IcosahedronGeometry(1, 1);
+    const pos = g.attributes.position;
+    const r = rng(5);
+    for (let i = 0; i < pos.count; i++) {
+      const k = 0.75 + r() * 0.5;
+      pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * k * 0.55, pos.getZ(i) * k);
+    }
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  useEffect(() => {
+    const mesh = ref.current!;
+    const r = rng(77);
+    const o = new THREE.Object3D();
+    const col = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      const x = (r() - 0.5) * 22;
+      const z = 12 - r() * 34;
+      const sc = 0.008 + Math.pow(r(), 3) * 0.05;
+      o.position.set(x, groundHeight(x, z) + sc * 0.2, z);
+      o.rotation.set(r() * 6, r() * 6, r() * 6);
+      o.scale.set(sc, sc, sc * (0.7 + r() * 0.6));
+      o.updateMatrix();
+      mesh.setMatrixAt(i, o.matrix);
+      mesh.setColorAt(i, col.setHSL(0.08, 0.12 + r() * 0.1, 0.25 + r() * 0.2));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [count]);
+  return (
+    <instancedMesh ref={ref} args={[geo, undefined, count]} frustumCulled={false}>
+      <meshStandardMaterial roughness={0.95} />
+    </instancedMesh>
+  );
+}
+
+/**
+ * Distant ranges as layered ridgelines. Each layer is lit softly and dissolves into the dawn haze,
+ * which gives the classic aerial-perspective depth of the Khorasan plateau.
+ */
+const mountainVertex = /* glsl */ `
+  varying vec3 vNormalW;
+  varying float vHeight;
+  void main() {
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vHeight = position.y;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const mountainFragment = /* glsl */ `
+  uniform vec3 uBase;
+  uniform vec3 uHaze;
+  uniform vec3 uSunDir;
+  uniform vec3 uSunColor;
+  uniform float uHazeAmount;
+  uniform float uPeak;
+  varying vec3 vNormalW;
+  varying float vHeight;
+  void main() {
+    float light = max(dot(normalize(vNormalW), normalize(uSunDir)), 0.0);
+    vec3 col = uBase * (0.55 + 0.45 * light) + uSunColor * pow(light, 3.0) * 0.08;
+    // Valleys hold more haze than crests.
+    float h = clamp(vHeight / uPeak, 0.0, 1.0);
+    float haze = clamp(uHazeAmount + (1.0 - h) * 0.25, 0.0, 1.0);
+    // The foot of each range sinks into the same haze as the far plain, so there is no hard seam.
+    haze = mix(haze, 1.0, smoothstep(0.22, 0.0, h));
+    gl_FragColor = vec4(mix(col, uHaze, haze), 1.0);
+  }
+`;
+
+const RANGES = [
+  { z: -75, peak: 7, scale: 0.035, seed: 1.7, base: "#2b211b", haze: 0.4 },
+  { z: -110, peak: 14, scale: 0.022, seed: 9.2, base: "#2a2125", haze: 0.6 },
+  { z: -165, peak: 26, scale: 0.014, seed: 4.4, base: "#2a2330", haze: 0.76 },
+];
+
+function Mountains({ uniforms }: { uniforms: { uHaze: { value: THREE.Color }; uSunDir: { value: THREE.Vector3 }; uSunColor: { value: THREE.Color } } }) {
+  const layers = useMemo(
+    () =>
+      RANGES.map((r) => {
+        const g = new THREE.PlaneGeometry(520, 40, 520, 24);
+        g.rotateX(-Math.PI / 2);
+        const pos = g.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const z = pos.getZ(i); // -20..20 across the range
+          const across = 1 - Math.pow(Math.abs(z) / 20, 1.6);
+          const ridge = ridged(x * r.scale + r.seed, z * r.scale * 0.6 + r.seed * 2.3);
+          const massif = 0.55 + 0.45 * fbm(x * r.scale * 0.25 + r.seed, r.seed, 3);
+          pos.setY(i, Math.max(0, across) * ridge * massif * r.peak * 1.6 - 1.5);
+        }
+        g.translate(0, 0, r.z);
+        g.computeVertexNormals();
+        const m = new THREE.ShaderMaterial({
+          vertexShader: mountainVertex,
+          fragmentShader: mountainFragment,
+          fog: false,
+          uniforms: {
+            uBase: { value: new THREE.Color(r.base) },
+            uHaze: uniforms.uHaze,
+            uSunDir: uniforms.uSunDir,
+            uSunColor: uniforms.uSunColor,
+            uHazeAmount: { value: r.haze },
+            uPeak: { value: r.peak },
+          },
+        });
+        return { g, m };
+      }),
+    [uniforms],
+  );
+  return (
+    <group>
+      {layers.map((l, i) => (
+        <mesh key={i} geometry={l.g} material={l.m} />
+      ))}
+    </group>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -153,7 +340,7 @@ function Field({ count, wind }: { count: number; wind: { uTime: { value: number 
       addWind(
         new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.6 }),
         wind,
-        0.55,
+        0.32,
       ),
     [wind],
   );
@@ -162,7 +349,7 @@ function Field({ count, wind }: { count: number; wind: { uTime: { value: number 
       addWind(
         new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.8 }),
         wind,
-        0.8,
+        0.4,
       ),
     [wind],
   );
@@ -177,35 +364,41 @@ function Field({ count, wind }: { count: number; wind: { uTime: { value: number 
     const s = new THREE.Vector3();
     const p = new THREE.Vector3();
 
+    // Corms are planted in rows; at flowering each one sends up one or two blooms,
+    // with bare soil showing between them and the odd gap where a corm did not flower.
     let placed = 0;
-    while (placed < count) {
-      // Flowers grow in clumps along the ridges between furrows.
-      const row = Math.round((r() - 0.5) * 2 * (r() < 0.75 ? 9 : 26));
-      const z = 14 - Math.pow(r(), 0.8) * 58;
-      const cx = row * ROW + ROW / 4;
-      const clump = 1 + Math.floor(r() * 4);
-      for (let k = 0; k < clump && placed < count; k++) {
-        const x = cx + (r() - 0.5) * 0.22;
-        const zz = z + (r() - 0.5) * 0.3;
-        // Keep a walking lane for the camera and space around the hero flower.
-        if (Math.abs(x) < 0.32 && zz > -0.6) continue;
-        if (Math.hypot(x, zz) < 0.55) continue;
-        p.set(x, groundHeight(x, zz), zz);
-        e.set((r() - 0.5) * 0.25, r() * Math.PI * 2, (r() - 0.5) * 0.25);
-        q.setFromEuler(e);
-        const sc = 0.8 + r() * 0.5;
-        s.set(sc, sc * (0.9 + r() * 0.25), sc);
-        m.compose(p, q, s);
-        buckets[Math.floor(r() * 3)].push(m.clone());
-        for (let l = 0; l < 3; l++) {
-          e.set((r() - 0.5) * 0.5, r() * Math.PI * 2, (r() - 0.5) * 0.5);
+    const rows = 34;
+    outer: for (let ri = -rows / 2; ri <= rows / 2; ri++) {
+      const cx = ri * ROW + (r() - 0.5) * 0.08;
+      const reach = 40 - Math.abs(ri) * 0.6;
+      let z = 13 - r() * 0.4;
+      while (z > -reach) {
+        z -= 0.32 + r() * 0.45;
+        if (r() < 0.28) continue; // gap in the row
+        const blooms = r() < 0.7 ? 1 : 2;
+        for (let k = 0; k < blooms; k++) {
+          if (placed >= count) break outer;
+          const x = cx + (r() - 0.5) * 0.14;
+          const zz = z + (r() - 0.5) * 0.12;
+          // Keep a walking lane for the camera and space around the hero flower.
+          if (Math.abs(x) < 0.4 && zz > -0.8) continue;
+          if (Math.hypot(x, zz) < 0.6) continue;
+          p.set(x, groundHeight(x, zz), zz);
+          e.set((r() - 0.5) * 0.2, r() * Math.PI * 2, (r() - 0.5) * 0.2);
           q.setFromEuler(e);
-          const ls = 0.7 + r() * 0.7;
-          s.set(1, ls, 1);
-          p.set(x + (r() - 0.5) * 0.08, groundHeight(x, zz), zz + (r() - 0.5) * 0.08);
-          leaves.push(m.clone().compose(p, q, s));
+          const sc = 0.85 + r() * 0.35;
+          s.set(sc, sc * (0.9 + r() * 0.2), sc);
+          m.compose(p, q, s);
+          buckets[Math.floor(r() * 3)].push(m.clone());
+          for (let l = 0; l < 2; l++) {
+            e.set((r() - 0.5) * 0.35, r() * Math.PI * 2, (r() - 0.5) * 0.35);
+            q.setFromEuler(e);
+            s.set(1, 0.6 + r() * 0.5, 1);
+            p.set(x + (r() - 0.5) * 0.05, groundHeight(x, zz), zz + (r() - 0.5) * 0.05);
+            leaves.push(m.clone().compose(p, q, s));
+          }
+          placed++;
         }
-        placed++;
       }
     }
     return { matrices: buckets, leafMatrices: leaves };
@@ -444,6 +637,14 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
   }, []);
 
   const fog = useMemo(() => new THREE.Fog("#1a1220", 3, 95), []);
+  const ranges = useMemo(
+    () => ({
+      uHaze: { value: new THREE.Color("#1a1220") },
+      uSunDir: { value: new THREE.Vector3(-0.25, 0.05, -1) },
+      uSunColor: { value: new THREE.Color("#ffb26b") },
+    }),
+    [],
+  );
   useEffect(() => {
     scene.fog = fog;
     return () => void (scene.fog = null);
@@ -485,6 +686,10 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
     fog.near = THREE.MathUtils.lerp(3, 1.2, band(p, 0.45, 0.8));
     fog.far = THREE.MathUtils.lerp(95, 18, band(p, 0.5, 0.85));
     if (sky.current) sky.current.position.copy(camera.position);
+    // Distant ranges share the horizon haze, so they fade the same way the sky brightens.
+    ranges.uHaze.value.copy(fog.color);
+    ranges.uSunDir.value.copy(u_.uSunDir.value as THREE.Vector3);
+    ranges.uSunColor.value.set("#9a86ff").lerp(SKY.glow, dawn);
 
     if (sun.current) {
       sun.current.intensity = 0.4 + dawn * 2.2;
@@ -495,9 +700,10 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
 
   return (
     <>
-      <mesh ref={sky} material={skyMat} renderOrder={-1}>
-        <sphereGeometry args={[180, 32, 16]} />
+      <mesh ref={sky} material={skyMat} renderOrder={-2}>
+        <sphereGeometry args={[300, 32, 16]} />
       </mesh>
+      <Mountains uniforms={ranges} />
       <hemisphereLight ref={hemi} args={["#8a78b8", "#2a1a10", 0.6]} />
       {/* Low sun behind the field: everything is rim-lit towards the camera. */}
       <directionalLight ref={sun} position={[-6, 3, -18]} intensity={1} />
@@ -522,7 +728,8 @@ export default function OriginScene({ progress, active }: { progress: Progress; 
     >
       <Rig progress={progress} wind={wind} />
       <Ground />
-      <Field count={mobile ? 1800 : 5200} wind={wind} />
+      <Field count={mobile ? 1400 : 3200} wind={wind} />
+      <Stones count={mobile ? 500 : 1400} />
       <HeroFlower progress={progress} />
       <Dust count={mobile ? 350 : 900} />
     </Canvas>
