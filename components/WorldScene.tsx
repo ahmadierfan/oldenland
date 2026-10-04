@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import { TONE } from "@/lib/realism";
 import * as THREE from "three";
 import { exportOrigin, markets } from "@/lib/content";
 import { heroThreadGeometry } from "@/lib/packaging";
@@ -392,12 +393,13 @@ export default function WorldScene({
       frameloop={active ? "always" : "never"}
       dpr={[1, 1.75]}
       camera={{ fov: 32, near: 0.1, far: 20, position: [0, 0, 4.6] }}
-      gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+      gl={{ antialias: true, ...TONE }}
       style={{ position: "absolute", inset: 0 }}
     >
       {data && <Globe progress={progress} data={data} labels={labels} />}
       <EffectComposer multisampling={4}>
         <Bloom intensity={0.6} luminanceThreshold={0.35} luminanceSmoothing={0.3} mipmapBlur />
+        <Vignette offset={0.3} darkness={0.5} />
       </EffectComposer>
     </Canvas>
   );

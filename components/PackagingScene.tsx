@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import CinematicFX from "./CinematicFX";
+import { TONE, loadEnvironment } from "@/lib/realism";
 import { Bag, type Mats, useMaterials } from "./PackagingParts";
 import { DISSOLVE_END } from "@/lib/handoff";
 import * as THREE from "three";
@@ -407,11 +407,13 @@ function Stage({
   tx,
   fxOn,
   setFxOn,
+  focus,
 }: {
   progress: Progress;
   tx: BrandTextures;
   fxOn: boolean;
   setFxOn: (on: boolean) => void;
+  focus: THREE.Vector3;
 }) {
   const m = useMaterials(tx);
   const { camera, gl, scene } = useThree();
@@ -423,14 +425,21 @@ function Stage({
   const crown = useRef<THREE.Group>(null);
   const card = useRef<THREE.Group>(null);
 
+  // Lit by a real photographed studio (HDRI): reflections in the glass and the soft wrap of light
+  // on paper come from an actual environment instead of a few point lights.
   useEffect(() => {
-    const pmrem = new THREE.PMREMGenerator(gl);
-    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environment = env;
-    scene.environmentIntensity = 0.55;
+    let env: THREE.Texture | null = null;
+    let alive = true;
+    loadEnvironment(gl, "/hdri/studio.exr").then((t) => {
+      if (!alive) return t.dispose();
+      env = t;
+      scene.environment = t;
+      scene.environmentIntensity = 0.42;
+      scene.environmentRotation.set(0, -0.6, 0);
+    });
     return () => {
-      env.dispose();
-      pmrem.dispose();
+      alive = false;
+      env?.dispose();
     };
   }, [gl, scene]);
 
@@ -445,6 +454,7 @@ function Stage({
   const tmp = useMemo(() => new THREE.Vector3(), []);
   const finale = useMemo<Finale>(() => ({ seal: 0, emerge: 0, exit: 0 }), []);
   const fog = useRef<THREE.Fog>(null);
+  const studioBg = useMemo(() => new THREE.Color("#0a0908"), []);
 
   useFrame((state, dt) => {
     smooth.current = THREE.MathUtils.damp(smooth.current, progress.current, 4, dt);
@@ -464,6 +474,11 @@ function Stage({
     }
     const wantFx = dark > 0.999;
     if (wantFx !== fxOn) setFxOn(wantFx);
+    // Transparent only while the field shows through. Glass samples what is behind it, and a
+    // transparent backdrop behind glass turns into invalid pixels in the post-processing chain.
+    const opaque = dark > 0.999;
+    if (opaque && scene.background !== studioBg) scene.background = studioBg;
+    if (!opaque && scene.background) scene.background = null;
 
     // Camera along its spline, keyed to scroll.
     let i = 0;
@@ -484,6 +499,7 @@ function Stage({
     v.pos.y += state.pointer.y * 0.08 * drift;
     camera.position.copy(v.pos);
     camera.lookAt(v.look);
+    focus.copy(v.look);
 
     // 1. The box rises out of the bag, the bag recedes, the box settles on the floor.
     const rise = ss(p, ...T.boxRise);
@@ -547,9 +563,9 @@ function Stage({
       {/* Key, rim and fill */}
       <spotLight
         position={[3.2, 6.2, 4.2]}
-        angle={0.34}
-        penumbra={0.9}
-        intensity={85}
+        angle={0.38}
+        penumbra={1}
+        intensity={70}
         decay={2}
         color="#fff1de"
         castShadow
@@ -559,7 +575,6 @@ function Stage({
       <spotLight position={[-3.5, 4.5, -4]} angle={0.4} penumbra={1} intensity={70} decay={2} color="#b9a3ff" />
       <spotLight position={[0.5, 3.2, -3.5]} angle={0.6} penumbra={1} intensity={45} decay={2} color="#ffcf8a" />
       <directionalLight position={[-4, 2, 5]} intensity={0.25} color="#ffe6c8" />
-      <ambientLight intensity={0.05} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} material={m.floor} receiveShadow>
         <circleGeometry args={[40, 64]} />
@@ -587,24 +602,21 @@ export default function PackagingScene({ progress, active }: { progress: Progres
   }, []);
   const mobile = typeof window !== "undefined" && window.innerWidth < 768;
   const [fxOn, setFxOn] = useState(false);
+  const focus = useMemo(() => new THREE.Vector3(0, 1.15, 0), []);
 
   return (
     <Canvas
-      shadows
+      shadows="soft"
       frameloop={active ? "always" : "never"}
       dpr={[1, mobile ? 1.5 : 1.75]}
       camera={{ fov: mobile ? 50 : 34, near: 0.05, far: 60, position: [2.9, 2.5, 5.6] }}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+      gl={{ alpha: true, antialias: true, powerPreference: "high-performance", ...TONE }}
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
       style={{ position: "absolute", inset: 0 }}
     >
-      {tx && <Stage progress={progress} tx={tx} fxOn={fxOn} setFxOn={setFxOn} />}
+      {tx && <Stage progress={progress} tx={tx} fxOn={fxOn} setFxOn={setFxOn} focus={focus} />}
       {/* Post-processing would flatten the transparent canvas, so it only joins once the field has gone. */}
-      {fxOn && (
-        <EffectComposer multisampling={4}>
-          <Bloom intensity={0.35} luminanceThreshold={0.85} luminanceSmoothing={0.2} mipmapBlur />
-        </EffectComposer>
-      )}
+      {fxOn && <CinematicFX focus={focus} focusRange={1.4} bokeh={2.2} aoRadius={0.35} aoIntensity={2.5} bloom={0.35} vignette={0.3} />}
     </Canvas>
   );
 }

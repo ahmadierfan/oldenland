@@ -1,0 +1,2 @@
+Normal maps and HDRIs (public/hdri) come from @pmndrs/assets, derived from Poly Haven assets.
+License: CC0 1.0 Universal (public domain). https://github.com/pmndrs/assets

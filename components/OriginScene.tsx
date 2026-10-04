@@ -5,6 +5,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { BAG_SCALE, BAG_SPOT, UNBOX_CAM0, UNBOX_FOV } from "@/lib/handoff";
 import { type BrandTextures, loadBrandTextures, DIM } from "@/lib/packaging";
 import { Bag, useMaterials } from "./PackagingParts";
+import CinematicFX from "./CinematicFX";
+import { TONE, loadEnvironment, normalMap } from "@/lib/realism";
 import * as THREE from "three";
 import {
   PETAL_BASE_Y,
@@ -134,7 +136,14 @@ function Ground() {
   }, []);
 
   const mat = useMemo(() => {
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+    // Dry, cracked clay relief from a real surface scan (normal map), tiled ~every 1.2 units.
+    const m = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 1,
+      metalness: 0,
+      normalMap: normalMap("soil-cracks", 260),
+      normalScale: new THREE.Vector2(0.9, 0.9),
+    });
     // Fine soil detail (crumbs, clods, cracks, straw) that holds up at flower height.
     m.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
@@ -357,7 +366,14 @@ function Field({ count, wind }: { count: number; wind: { uTime: { value: number 
   const flowerMat = useMemo(
     () =>
       addWind(
-        new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.6 }),
+        // A little self-glow reads as light passing through thin petals.
+        new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          side: THREE.DoubleSide,
+          roughness: 0.55,
+          emissive: new THREE.Color("#2c1250"),
+          emissiveIntensity: 0.45,
+        }),
         wind,
         0.32,
       ),
@@ -663,8 +679,34 @@ const CAM_KEYS: { p: number; pos: [number, number, number]; look: [number, numbe
   { p: 1.0, pos: CAM_END.pos, look: CAM_END.look },
 ];
 
-function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: number } } }) {
-  const { camera, scene } = useThree();
+function Rig({
+  progress,
+  wind,
+  focus,
+  range,
+}: {
+  progress: Progress;
+  wind: { uTime: { value: number } };
+  focus: THREE.Vector3;
+  range: { value: number };
+}) {
+  const { camera, scene, gl } = useThree();
+
+  // Real sunrise light (HDRI) for soft sky fill and reflections; the visible sky stays our own.
+  useEffect(() => {
+    let env: THREE.Texture | null = null;
+    let alive = true;
+    loadEnvironment(gl, "/hdri/sunrise.exr").then((t) => {
+      if (!alive) return t.dispose();
+      env = t;
+      scene.environment = t;
+      scene.environmentIntensity = 0.35;
+    });
+    return () => {
+      alive = false;
+      env?.dispose();
+    };
+  }, [gl, scene]);
   const smooth = useRef(progress.current);
   const sky = useRef<THREE.Mesh>(null);
   const sun = useRef<THREE.DirectionalLight>(null);
@@ -735,6 +777,9 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
     v.pos.y += Math.sin(state.clock.elapsedTime * 0.5) * 0.01 * settle;
     camera.position.copy(v.pos);
     camera.lookAt(v.look);
+    // Lens: focus on what we look at. Deep focus over the landscape, shallow on the flower and the bag.
+    focus.copy(v.look);
+    range.value = THREE.MathUtils.lerp(60, 0.6, band(p, 0.3, 0.6)) + band(p, 0.86, 1) * 1.2;
     const cam = camera as THREE.PerspectiveCamera;
     const mobile = state.size.width < 768;
     const fov = THREE.MathUtils.lerp(mobile ? 55 : 42, mobile ? UNBOX_FOV.mobile : UNBOX_FOV.desktop, band(p, 0.84, 1));
@@ -784,23 +829,26 @@ function Rig({ progress, wind }: { progress: Progress; wind: { uTime: { value: n
 
 export default function OriginScene({ progress, active }: { progress: Progress; active: boolean }) {
   const wind = useMemo(() => ({ uTime: { value: 0 } }), []);
+  const focus = useMemo(() => new THREE.Vector3(0, 1.6, -40), []);
+  const range = useMemo(() => ({ value: 60 }), []);
   const mobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   return (
     <Canvas
       frameloop={active ? "always" : "never"}
-      dpr={[1, mobile ? 1.5 : 1.75]}
+      dpr={[1, mobile ? 1.25 : 1.5]}
       camera={{ fov: mobile ? 55 : 42, near: 0.02, far: 400, position: [0, 3.4, 17] }}
-      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
+      gl={{ antialias: false, powerPreference: "high-performance", ...TONE, toneMappingExposure: 1.1 }}
       style={{ position: "absolute", inset: 0 }}
     >
-      <Rig progress={progress} wind={wind} />
+      <Rig progress={progress} wind={wind} focus={focus} range={range} />
       <Ground />
       <Field count={mobile ? 1400 : 3200} wind={wind} />
       <Stones count={mobile ? 500 : 1400} />
       <HeroFlower progress={progress} />
       <FieldBag />
       <Dust count={mobile ? 350 : 900} />
+      <CinematicFX focus={focus} range={range} bokeh={3} aoRadius={0.25} aoIntensity={1.8} bloom={0.45} vignette={0.55} />
     </Canvas>
   );
 }

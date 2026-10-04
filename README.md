@@ -40,6 +40,16 @@ The globe's land dots are precomputed from Natural Earth data (the `world-atlas`
 node scripts/build-world-dots.mjs   # writes public/data/world-dots.json
 ```
 
+### Realism
+
+`lib/realism.ts` and `components/CinematicFX.tsx` hold the "shot on a real camera" finish:
+- Image-based lighting from real HDRIs (`public/hdri`: a studio for the unboxing, a sunrise for the field). They are loaded at full precision with the hottest pixels clamped.
+- Tileable surface normals (`public/textures/normals`) for paper fibre, crumpled bag paper, foam and cracked soil.
+- AgX filmic tone mapping, soft shadows, ambient occlusion (N8AO), depth of field that follows the camera's subject, bloom and a lens vignette.
+- Film grain is a CSS layer over the page, not a post-processing pass. A soft-light grain pass on HDR values leaves black specks on glass highlights.
+
+The HDRIs and normal maps are CC0 (Poly Haven, via `@pmndrs/assets`). See the `LICENSE.txt` next to them.
+
 Model sizes, timings and camera moves are in:
 - `lib/packaging.ts`: geometry, sizes and textures
 - `components/PackagingScene.tsx`: the scroll timeline (`T`) and the camera path (`CAM`)

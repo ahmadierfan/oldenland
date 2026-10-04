@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 /**
  * Oldenland packaging, modelled from the reference photos in media/source.
@@ -246,8 +247,9 @@ function drawCrocusSketch(ctx: CanvasRenderingContext2D, x: number, y: number, s
 /** An open box shell (no top), walls of thickness t. Origin at the bottom centre. */
 export function openShell(w: number, d: number, h: number, t: number, bottom = true) {
   const parts: THREE.BufferGeometry[] = [];
+  // Softly rounded edges: real board never has razor-sharp corners, and the rounding catches highlights.
   const add = (sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
-    const g = new THREE.BoxGeometry(sx, sy, sz);
+    const g = new RoundedBoxGeometry(sx, sy, sz, 2, Math.min(sx, sy, sz) * 0.45);
     g.translate(x, y, z);
     parts.push(g);
   };
@@ -433,9 +435,26 @@ export function bagParts() {
       sides.push(g);
     }
   }
-  const front = new THREE.PlaneGeometry(w, h);
+  // Paper panels are never flat: a slight outward belly plus soft creases.
+  const panel = (seed: number) => {
+    const g = new THREE.PlaneGeometry(w, h, 28, 28);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i);
+      const u = x / w + 0.5;
+      const v = y / h + 0.5;
+      const belly = Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * 0.022;
+      const crease =
+        Math.sin(x * 9.1 + seed) * Math.sin(y * 7.3 - seed) * 0.0035 + Math.sin(x * 23 + y * 17 + seed * 3) * 0.0012;
+      pos.setZ(i, belly + crease * Math.sin(Math.PI * u));
+    }
+    g.computeVertexNormals();
+    return g;
+  };
+  const front = panel(1.3);
   front.translate(0, h / 2, d / 2);
-  const back = new THREE.PlaneGeometry(w, h);
+  const back = panel(4.1);
   back.rotateY(Math.PI);
   back.translate(0, h / 2, -d / 2);
   const bottom = new THREE.BoxGeometry(w, t, d);
