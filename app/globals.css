@@ -21,6 +21,8 @@
 
 html {
   background: var(--color-ink);
+  /* Never wider than the screen: on phones any overflow would make the browser zoom the page out. */
+  overflow-x: clip;
   scrollbar-width: thin;
   scrollbar-color: #3a3328 transparent;
 }
@@ -74,12 +76,20 @@ body {
   background: linear-gradient(90deg, transparent, rgba(201, 164, 92, 0.55), transparent);
 }
 
-/* Film grain over the whole page for a cinematic finish (a small tile, moved on the compositor). */
+/* Film grain over the whole page for a cinematic finish (a small tile, moved on the compositor).
+   The moving layer is larger than the screen, so it lives inside a clipped fixed frame: an element
+   that sticks out of the viewport widens the page on phones. */
 .grain {
   pointer-events: none;
   position: fixed;
-  inset: -160px;
+  inset: 0;
   z-index: 60;
+  overflow: hidden;
+}
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: -160px;
   opacity: 0.06;
   background-image: url("/noise.png");
   will-change: transform;
@@ -102,7 +112,7 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grain {
+  .grain::before {
     animation: none;
   }
 }

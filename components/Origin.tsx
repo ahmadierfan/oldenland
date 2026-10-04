@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
+import { useStageMount } from "@/hooks/useStageMount";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { brand, originBeats } from "@/lib/content";
 import { FIELD_END, FIELD_VH } from "@/lib/handoff";
@@ -24,6 +25,7 @@ const beatOpacity = (p: number, at: number, until: number) =>
  */
 export default function Origin() {
   const section = useRef<HTMLElement>(null);
+  const mounted = useStageMount(section);
   const progress = useRef({ current: 0 });
   const hero = useRef<HTMLDivElement>(null);
   const beats = useRef<(HTMLDivElement | null)[]>([]);
@@ -92,7 +94,7 @@ export default function Origin() {
     <section id="origin" ref={section} className="relative"
       style={{ height: `${FIELD_VH}vh` }}>
       <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
-        <OriginScene progress={progress.current} active={active} />
+        {mounted && <OriginScene progress={progress.current} active={active} />}
 
         {/* Cinematic grade over the 3D stage */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(10,9,8,0.75)_100%)]" />
@@ -102,7 +104,7 @@ export default function Origin() {
         {/* Hero */}
         <div ref={hero} className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center will-change-transform">
           <p className="kicker mb-6 opacity-80">Persian Saffron · {brand.origin}</p>
-          <h1 className="font-display gold-text text-[16vw] font-light leading-[0.85] tracking-[0.08em] md:text-[11vw]">
+          <h1 className="font-display gold-text text-[13.5vw] font-light leading-[0.85] tracking-[0.06em] md:text-[11vw] md:tracking-[0.08em]">
             OLDENLAND
           </h1>
           <p className="font-display mt-6 max-w-xl text-xl italic text-cream/80 md:text-2xl">{brand.tagline}</p>

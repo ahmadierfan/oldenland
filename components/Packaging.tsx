@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
+import { useStageMount } from "@/hooks/useStageMount";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { packagingBeats } from "@/lib/content";
 import { DISSOLVE_END, DISSOLVE_VH, UNBOX_VH } from "@/lib/handoff";
@@ -21,6 +22,7 @@ const FADE = 0.025;
 /** Chapter III: the packaging, modelled in 3D and opened layer by layer as you scroll. */
 export default function Packaging() {
   const section = useRef<HTMLElement>(null);
+  const mounted = useStageMount(section);
   const progress = useRef({ current: 0 });
   const beats = useRef<(HTMLDivElement | null)[]>([]);
   const meter = useRef<HTMLDivElement>(null);
@@ -86,7 +88,7 @@ export default function Packaging() {
       <div ref={stage} className="invisible sticky top-0 h-[100svh] w-full overflow-hidden">
         <div ref={backdrop} className="absolute inset-0 bg-ink opacity-0" />
         <div ref={film} className="absolute inset-0 opacity-0">
-          <PackagingScene progress={progress.current} active={active} />
+          {mounted && <PackagingScene progress={progress.current} active={active} />}
         </div>
         <div
           ref={vignette}

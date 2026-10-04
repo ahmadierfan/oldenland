@@ -59,7 +59,7 @@ export const packagingBeats = [
   { at: 0.535, until: 0.6, index: "05", name: "The Story Card", title: "Where your saffron was grown", body: "A kraft card, tied with natural twine, tells the story of the harvest." },
   { at: 0.605, until: 0.675, index: "06", name: "The Crocus Crown", title: "A flower, made in glass", body: "Every stopper is a hand-shaped glass crocus — violet petals, green leaves." },
   { at: 0.68, until: 0.79, index: "07", name: "The Vessel", title: "Hand-blown glass, sealed by hand", body: "The saffron rests inside a wide glass vessel, sealed until the moment it is opened." },
-  { at: 0.83, until: 1.2, index: "08", name: "The Proof", title: "Two threads tell you everything", body: "Deep crimson from tip to base, flared trumpet ends, no pale style — the mark of Super Negin, Khorasan's finest cut. Move your mouse — then keep scrolling to follow them to the world." },
+  { at: 0.83, until: 1.2, index: "08", name: "The Proof", title: "Two threads tell you everything", body: "Deep crimson from tip to base, flared trumpet ends, no pale style — the mark of Super Negin, Khorasan's finest cut. Keep scrolling to follow them to the world." },
 ];
 
 /** Product specification. Values marked "confirm" should be checked against your lab reports. */

@@ -4,7 +4,8 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Bloom, DepthOfField, EffectComposer, N8AO, Vignette } from "@react-three/postprocessing";
 import type { DepthOfFieldEffect } from "postprocessing";
-import * as THREE from "three";
+import type * as THREE from "three";
+import { isLowPower } from "@/lib/device";
 
 /**
  * The "shot on a real camera" finish shared by the 3D scenes:
@@ -41,8 +42,16 @@ export default function CinematicFX({
     if (range && dof.current) dof.current.cocMaterial.worldFocusRange = range.value;
   });
 
+  if (isLowPower()) {
+    // Phones: a soft bloom only. AO and depth of field cost several full-screen passes each.
+    return (
+      <EffectComposer multisampling={0}>
+        <Bloom intensity={bloom} luminanceThreshold={0.85} luminanceSmoothing={0.25} mipmapBlur />
+      </EffectComposer>
+    );
+  }
   return (
-    <EffectComposer multisampling={4} frameBufferType={THREE.FloatType}>
+    <EffectComposer multisampling={4}>
       <N8AO halfRes aoRadius={aoRadius} intensity={aoIntensity} distanceFalloff={0.6} quality="medium" />
       {focus && <DepthOfField ref={dof} target={[0, 0, 0]} worldFocusRange={focusRange} bokehScale={bokeh} />}
       <Bloom intensity={bloom} luminanceThreshold={0.8} luminanceSmoothing={0.25} mipmapBlur />

@@ -7,16 +7,23 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
  */
 
 /** Loads an HDRI and pre-filters it for physically based reflections and ambient light. */
-export async function loadEnvironment(gl: THREE.WebGLRenderer, url: string, maxRadiance = 400) {
-  // Load at full float precision and clamp the hottest pixels (lamps, the sun). In half-float those
-  // overflow to Infinity, and every mirror-like reflection of them turns into a black speck.
-  const hdr = await new EXRLoader().setDataType(THREE.FloatType).loadAsync(url);
-  const data = hdr.image.data as Float32Array;
-  for (let i = 0; i < data.length; i++) {
-    const v = data[i];
-    data[i] = Number.isFinite(v) ? Math.min(Math.max(v, 0), maxRadiance) : maxRadiance;
+export async function loadEnvironment(gl: THREE.WebGLRenderer, url: string, maxRadiance = 400, lowPower = false) {
+  let hdr: THREE.DataTexture;
+  if (lowPower) {
+    // Phones: half-float is what mobile GPUs can filter; no post-processing runs there, so the odd
+    // over-bright pixel stays a single pixel.
+    hdr = await new EXRLoader().setDataType(THREE.HalfFloatType).loadAsync(url);
+  } else {
+    // Load at full float precision and clamp the hottest pixels (lamps, the sun) so they cannot
+    // overflow when blurred by depth of field and bloom.
+    hdr = await new EXRLoader().setDataType(THREE.FloatType).loadAsync(url);
+    const data = hdr.image.data as Float32Array;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      data[i] = Number.isFinite(v) ? Math.min(Math.max(v, 0), maxRadiance) : maxRadiance;
+    }
+    hdr.needsUpdate = true;
   }
-  hdr.needsUpdate = true;
   hdr.mapping = THREE.EquirectangularReflectionMapping;
   const pmrem = new THREE.PMREMGenerator(gl);
   const env = pmrem.fromEquirectangular(hdr).texture;

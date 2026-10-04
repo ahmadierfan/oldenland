@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import CinematicFX from "./CinematicFX";
 import { TONE, loadEnvironment } from "@/lib/realism";
+import { isLowPower } from "@/lib/device";
 import { Bag, type Mats, useMaterials } from "./PackagingParts";
 import { DISSOLVE_END } from "@/lib/handoff";
 import * as THREE from "three";
@@ -272,7 +273,7 @@ function GiftBox({
           <circleGeometry args={[f.cavityR, 64]} />
         </mesh>
         <group ref={refs.jar} position={[0, jarY, 0]}>
-          <Jar m={m} saffron={3200} finale={refs.finale} />
+          <Jar m={m} saffron={isLowPower() ? 1400 : 3200} finale={refs.finale} />
         </group>
         <group ref={refs.crown} position={[0, jarY + 0.395, 0]}>
           <CrocusCrown m={m} />
@@ -430,7 +431,7 @@ function Stage({
   useEffect(() => {
     let env: THREE.Texture | null = null;
     let alive = true;
-    loadEnvironment(gl, "/hdri/studio.exr").then((t) => {
+    loadEnvironment(gl, "/hdri/studio.exr", 400, isLowPower()).then((t) => {
       if (!alive) return t.dispose();
       env = t;
       scene.environment = t;
@@ -569,7 +570,7 @@ function Stage({
         decay={2}
         color="#fff1de"
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1536, 1536]}
         shadow-bias={-0.0002}
       />
       <spotLight position={[-3.5, 4.5, -4]} angle={0.4} penumbra={1} intensity={70} decay={2} color="#b9a3ff" />
@@ -601,14 +602,15 @@ export default function PackagingScene({ progress, active }: { progress: Progres
     };
   }, []);
   const mobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const low = isLowPower();
   const [fxOn, setFxOn] = useState(false);
   const focus = useMemo(() => new THREE.Vector3(0, 1.15, 0), []);
 
   return (
     <Canvas
-      shadows="soft"
+      shadows={!low}
       frameloop={active ? "always" : "never"}
-      dpr={[1, mobile ? 1.5 : 1.75]}
+      dpr={[1, low ? 1.25 : 1.75]}
       camera={{ fov: mobile ? 50 : 34, near: 0.05, far: 60, position: [2.9, 2.5, 5.6] }}
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance", ...TONE }}
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}

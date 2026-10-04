@@ -7,6 +7,7 @@ import { type BrandTextures, loadBrandTextures, DIM } from "@/lib/packaging";
 import { Bag, useMaterials } from "./PackagingParts";
 import CinematicFX from "./CinematicFX";
 import { TONE, loadEnvironment, normalMap } from "@/lib/realism";
+import { isLowPower } from "@/lib/device";
 import * as THREE from "three";
 import {
   PETAL_BASE_Y,
@@ -696,7 +697,7 @@ function Rig({
   useEffect(() => {
     let env: THREE.Texture | null = null;
     let alive = true;
-    loadEnvironment(gl, "/hdri/sunrise.exr").then((t) => {
+    loadEnvironment(gl, "/hdri/sunrise.exr", 400, isLowPower()).then((t) => {
       if (!alive) return t.dispose();
       env = t;
       scene.environment = t;
@@ -832,22 +833,23 @@ export default function OriginScene({ progress, active }: { progress: Progress; 
   const focus = useMemo(() => new THREE.Vector3(0, 1.6, -40), []);
   const range = useMemo(() => ({ value: 60 }), []);
   const mobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const low = isLowPower();
 
   return (
     <Canvas
       frameloop={active ? "always" : "never"}
-      dpr={[1, mobile ? 1.25 : 1.5]}
+      dpr={[1, low ? 1.15 : 1.5]}
       camera={{ fov: mobile ? 55 : 42, near: 0.02, far: 400, position: [0, 3.4, 17] }}
       gl={{ antialias: false, powerPreference: "high-performance", ...TONE, toneMappingExposure: 1.1 }}
       style={{ position: "absolute", inset: 0 }}
     >
       <Rig progress={progress} wind={wind} focus={focus} range={range} />
       <Ground />
-      <Field count={mobile ? 1400 : 3200} wind={wind} />
-      <Stones count={mobile ? 500 : 1400} />
+      <Field count={low ? 1100 : 3200} wind={wind} />
+      <Stones count={low ? 300 : 1400} />
       <HeroFlower progress={progress} />
       <FieldBag />
-      <Dust count={mobile ? 350 : 900} />
+      <Dust count={low ? 250 : 900} />
       <CinematicFX focus={focus} range={range} bokeh={3} aoRadius={0.25} aoIntensity={1.8} bloom={0.45} vignette={0.55} />
     </Canvas>
   );

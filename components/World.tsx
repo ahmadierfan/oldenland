@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
+import { useStageMount } from "@/hooks/useStageMount";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { exportOrigin, markets } from "@/lib/content";
 
@@ -17,6 +18,7 @@ const arrival = (i: number) => 0.12 + i * 0.085 + 0.14;
 /** Chapter V: saffron threads leave Khorasan as routes to the markets we ship to. */
 export default function World() {
   const section = useRef<HTMLElement>(null);
+  const mounted = useStageMount(section);
   const progress = useRef({ current: 0 });
   const labels = useRef<(HTMLDivElement | null)[]>([]);
   const intro = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export default function World() {
   return (
     <section id="world" ref={section} className="relative h-[600vh] bg-ink">
       <div className="sticky top-0 h-[100svh] w-full overflow-hidden">
-        <WorldScene progress={progress.current} active={active} labels={labels} />
+        {mounted && <WorldScene progress={progress.current} active={active} labels={labels} />}
 
         {/* City labels that follow the globe */}
         {all.map((c, i) => (
