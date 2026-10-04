@@ -73,11 +73,9 @@ cd /root/oldenland
 npm ci
 npm run build
 
-# run it as a service (restarts on reboot or crash)
-cp deploy/oldenland.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now oldenland
+# run it with pm2 (or use deploy/oldenland.service with systemd)
+pm2 start ecosystem.config.cjs && pm2 save
 
 # update later
-cd /root/oldenland && git pull && npm ci && npm run build && systemctl restart oldenland
+git pull && npm ci && npm run build && pm2 restart oldenland
 ```
