@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx serve out",
+    "start": "serve out --no-clipboard --listen tcp://127.0.0.1:${PORT:-4804}",
     "lint": "tsc --noEmit",
-    "media": "bash scripts/build-media.sh"
+    "textures": "bash scripts/build-textures.sh"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -19,6 +19,7 @@
     "postprocessing": "^6.39.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "serve": "^14.2.6",
     "three": "^0.186.1"
   },
   "devDependencies": {
@@ -35,5 +36,8 @@
     "topojson-client": "^3.1.0",
     "typescript": "^5.9.3",
     "world-atlas": "^2.0.2"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }

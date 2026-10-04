@@ -61,3 +61,23 @@ All copy is in `lib/content.ts`, including the story beats, unboxing captions, s
 **Check before going live:**
 - `brand.email` is a placeholder (`info@oldenland.com`).
 - The `specs` values (cut and grade, ISO 3632) should match your lab reports.
+
+## Deploy (Linux server behind nginx)
+
+The site is a static export. `npm run build` writes it to `out/`, and `npm start` serves it on `127.0.0.1:4804`. That is the port the nginx config proxies to.
+
+```bash
+# once: Node.js 20.9 or newer
+git clone https://github.com/ahmadierfan/oldenland.git /root/oldenland
+cd /root/oldenland
+npm ci
+npm run build
+
+# run it as a service (restarts on reboot or crash)
+cp deploy/oldenland.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now oldenland
+
+# update later
+cd /root/oldenland && git pull && npm ci && npm run build && systemctl restart oldenland
+```
